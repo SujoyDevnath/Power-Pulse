@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? 'https://powerpulse-api-j8oc.onrender.com/api'
+    : 'http://localhost:5000/api');
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -87,7 +93,7 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const baseURL = API_BASE_URL;
       // Use clean standalone axios instance to prevent interceptor recursion
       const res = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
       const newAccessToken = res.data.accessToken || res.data.token;

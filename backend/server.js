@@ -21,8 +21,26 @@ const PORT = process.env.PORT || 5000;
 
 // Security & Utility Middleware
 app.use(helmet());
+
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://power-pulse-olive.vercel.app',
+    process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (
+            allowedOrigins.includes(origin) ||
+            origin.endsWith('.vercel.app') ||
+            process.env.CLIENT_URL === '*'
+        ) {
+            return callback(null, true);
+        }
+        return callback(null, true);
+    },
     credentials: true
 }));
 app.use(express.json());
