@@ -47,6 +47,7 @@ export const ConsumerPortal = () => {
   // --- State: Reporting Action & Real-time Evaluation Result ---
   const [reporting, setReporting] = useState(false);
   const [reportResult, setReportResult] = useState(null);
+  const [lastReportType, setLastReportType] = useState(null);
 
   // --- State: Complaint Submission Form ---
   const [category, setCategory] = useState('power_outage');
@@ -68,12 +69,13 @@ export const ConsumerPortal = () => {
   const fetchConsumerData = async () => {
     try {
       setLoading(true);
-      const [incidentRes, complaintRes, plannedRes, billRes, meterRes] = await Promise.all([
+      const [incidentRes, complaintRes, plannedRes, billRes, meterRes, myReportsRes] = await Promise.all([
         api.get(`/incidents/active?location_id=${user?.location_id || 1}`),
         api.get('/complaints/mine'),
         api.get(`/planned?location_id=${user?.location_id || 1}`),
         api.get('/bills/current'),
-        api.get('/meter/usage')
+        api.get('/meter/usage'),
+        api.get('/reports/mine').catch(() => ({ data: { reports: [] } }))
       ]);
 
       const active = incidentRes.data.incidents?.[0] || null;
@@ -82,6 +84,11 @@ export const ConsumerPortal = () => {
       setPlannedOutages(plannedRes.data.planned || []);
       setBill(billRes.data.bill || null);
       setMeterUsage(meterRes.data || null);
+
+      const recentReport = myReportsRes.data?.reports?.[0];
+      if (recentReport) {
+        setLastReportType(recentReport.type);
+      }
     } catch (err) {
       console.error('Error fetching consumer data:', err);
     } finally {
@@ -153,6 +160,8 @@ export const ConsumerPortal = () => {
         client_uuid: clientUuid,
         reported_at: new Date().toISOString()
       });
+
+      setLastReportType(type);
 
       setReportResult({
         type,
@@ -238,6 +247,7 @@ export const ConsumerPortal = () => {
         reporting={reporting}
         reportResult={reportResult}
         onReport={handleReport}
+        lastReportType={lastReportType}
       />
 
       {/* 2. File Complaint & Scheduled Load-Shedding Announcements */}

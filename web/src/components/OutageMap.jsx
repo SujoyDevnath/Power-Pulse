@@ -33,20 +33,49 @@ function AutoFitBounds({ locations = [] }) {
 // Helper to create modern SVG HTML markers
 const createCustomMarker = (hasOutage, confidenceScore = 0) => {
   if (hasOutage) {
+    // 🔴 1. Critical Blackout / Confirmed Outage (> 80%)
+    if (confidenceScore > 80) {
+      return L.divIcon({
+        className: 'custom-outage-marker-red',
+        html: `
+          <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px;">
+            <!-- Pulsing Wave Animation Red -->
+            <span style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: rgba(239, 68, 68, 0.45); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
+            <!-- Center Pin Icon Red -->
+            <div style="position: relative; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #b91c1c); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.5); border: 2.5px solid #ffffff; color: white;">
+              <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <!-- Score Pill Red -->
+            <span style="position: absolute; top: -8px; background-color: #ef4444; color: #ffffff; font-size: 10px; font-weight: 800; padding: 1px 5px; border-radius: 9999px; border: 1.5px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap;">
+              ${confidenceScore}%
+            </span>
+          </div>
+        `,
+        iconSize: [42, 42],
+        iconAnchor: [21, 21],
+        popupAnchor: [0, -22]
+      });
+    }
+
+    // 🟡 2. Warning / Potential Outage (<= 80%)
     return L.divIcon({
-      className: 'custom-outage-marker',
+      className: 'custom-outage-marker-warning',
       html: `
         <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px;">
-          <!-- Pulsing Wave Animation -->
-          <span style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: rgba(239, 68, 68, 0.4); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
-          <!-- Center Pin Icon -->
-          <div style="position: relative; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #b91c1c); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.5); border: 2.5px solid #ffffff; color: white;">
-            <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          <!-- Pulsing Wave Animation Amber/Warning -->
+          <span style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: rgba(245, 158, 11, 0.45); animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
+          <!-- Center Pin Icon Amber -->
+          <div style="position: relative; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.5); border: 2.5px solid #ffffff; color: white;">
+            <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
             </svg>
           </div>
-          <!-- Tiny Score Pill -->
-          <span style="position: absolute; top: -8px; background-color: #ef4444; color: #ffffff; font-size: 10px; font-weight: 800; padding: 1px 5px; border-radius: 9999px; border: 1.5px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap;">
+          <!-- Score Pill Amber/Warning -->
+          <span style="position: absolute; top: -8px; background-color: #f59e0b; color: #ffffff; font-size: 10px; font-weight: 800; padding: 1px 5px; border-radius: 9999px; border: 1.5px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap;">
             ${confidenceScore}%
           </span>
         </div>
@@ -57,7 +86,7 @@ const createCustomMarker = (hasOutage, confidenceScore = 0) => {
     });
   }
 
-  // Normal / Online Pin
+  // 🟢 3. Normal / Online Pin
   return L.divIcon({
     className: 'custom-online-marker',
     html: `
@@ -116,7 +145,10 @@ export const OutageMap = ({
 
           const activeOutage = incidentByLocation.get(Number(loc.location_id));
           const hasOutage = Boolean(activeOutage);
-          const icon = createCustomMarker(hasOutage, activeOutage?.confidence_score || 0);
+          const score = Number(activeOutage?.confidence_score || 0);
+          const isCriticalOutage = hasOutage && score > 80;
+          const isWarningOutage = hasOutage && score <= 80;
+          const icon = createCustomMarker(hasOutage, score);
 
           return (
             <Marker
@@ -133,9 +165,21 @@ export const OutageMap = ({
               >
                 <div className="flex items-center gap-1">
                   {hasOutage && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isCriticalOutage ? 'bg-red-500' : 'bg-amber-500'
+                      } animate-pulse`}
+                    ></span>
                   )}
-                  <span className={hasOutage ? 'text-red-700 font-bold' : 'text-slate-800 font-semibold'}>
+                  <span
+                    className={
+                      !hasOutage
+                        ? 'text-slate-800 font-semibold'
+                        : isCriticalOutage
+                        ? 'text-red-700 font-bold'
+                        : 'text-amber-700 font-bold'
+                    }
+                  >
                     {loc.area}
                   </span>
                 </div>
@@ -155,9 +199,17 @@ export const OutageMap = ({
                   {hasOutage ? (
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-red-600 font-bold flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                          Power Outage
+                        <span
+                          className={`${
+                            isCriticalOutage ? 'text-red-600' : 'text-amber-600'
+                          } font-bold flex items-center gap-1`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              isCriticalOutage ? 'bg-red-500' : 'bg-amber-500'
+                            } animate-pulse`}
+                          ></span>
+                          {isCriticalOutage ? 'Confirmed Outage' : 'Potential Outage / Warning'}
                         </span>
                         <span className="font-mono text-[10px] text-slate-500">
                           #{activeOutage.incident_id}
@@ -195,7 +247,11 @@ export const OutageMap = ({
       <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-slate-200/90 shadow-lg text-[11px] space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-          <span className="font-bold text-red-700">Active Outage Area</span>
+          <span className="font-bold text-red-700">Confirmed Outage (&gt; 80%)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+          <span className="font-semibold text-amber-700">Warning / Potential (&le; 80%)</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>

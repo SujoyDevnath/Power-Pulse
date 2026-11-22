@@ -9,11 +9,26 @@ export const ConsumerNotifications = () => {
   const [readFilter, setReadFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (autoMarkSeen = true) => {
     try {
       setLoading(true);
       const res = await api.get('/notifications');
-      setNotifications(res.data.notifications || []);
+      const items = res.data.notifications || [];
+
+      // If user enters notifications section, automatically mark all as seen/read in backend
+      const hasUnread = items.some(n => !n.is_read);
+      if (autoMarkSeen && hasUnread) {
+        api.patch('/notifications/read-all').catch(err => {
+          console.warn('Auto mark-read failed:', err.message);
+        });
+        // Settle local items as read
+        setNotifications(items.map(n => ({ ...n, is_read: 1 })));
+        window.dispatchEvent(new CustomEvent('powerpulse-notifications-changed', {
+          detail: { unreadCount: 0 }
+        }));
+      } else {
+        setNotifications(items);
+      }
     } catch (err) {
       console.error('Error fetching notifications:', err);
     } finally {
@@ -22,8 +37,16 @@ export const ConsumerNotifications = () => {
   };
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications(true);
   }, []);
+
+  // Broadcast unread count changes to ConsumerLayout in real-time
+  useEffect(() => {
+    const unread = notifications.filter(n => !n.is_read).length;
+    window.dispatchEvent(new CustomEvent('powerpulse-notifications-changed', {
+      detail: { unreadCount: unread }
+    }));
+  }, [notifications]);
 
   const markAsRead = async (id) => {
     try {

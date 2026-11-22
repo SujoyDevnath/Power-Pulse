@@ -71,10 +71,19 @@ function calculateConfidenceScore(reports = [], penalties = { duplicateCount: 0,
     }
     const reliabilityFactor = Math.round(avgReliability * 10);
 
-    // 5. Penalty Calculation
-    const duplicatePenalty = (penalties.duplicateCount || 0) * 5;
-    const spamPenalty = (penalties.spamCount || 0) * 10;
-    const totalPenalty = duplicatePenalty + spamPenalty;
+    // 5. Intelligent Byzantine Fault-Tolerant Penalty Calculation
+    // Prevents "Neighborhood Denial of Service": a single malicious spammer
+    // cannot poison or mute an entire neighborhood when legitimate neighbors report.
+    const rawDuplicatePenalty = (penalties.duplicateCount || 0) * 3;
+    const rawSpamPenalty = (penalties.spamCount || 0) * 5;
+    const rawTotalPenalty = rawDuplicatePenalty + rawSpamPenalty;
+
+    // Penalty Capping based on genuine community consensus:
+    // - If 3+ unique legitimate neighbors report, community consensus overrides isolated spam (max penalty: 12 pts).
+    // - If 2 unique neighbors report, max penalty: 18 pts.
+    // - If only 1 user reports (potential isolated prank/spam), max penalty: 25 pts.
+    const maxAllowedPenalty = uniqueUsers >= 3 ? 12 : (uniqueUsers >= 2 ? 18 : 25);
+    const totalPenalty = Math.min(rawTotalPenalty, maxAllowedPenalty);
 
     // Total raw calculation
     const rawScore = reportFactor + uniqueUserFactor + timeClusterFactor + reliabilityFactor - totalPenalty;

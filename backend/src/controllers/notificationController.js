@@ -16,6 +16,21 @@ exports.getNotifications = (req, res) => {
     }
 };
 
+exports.getUnreadCount = (req, res) => {
+    try {
+        const result = db.prepare(`
+            SELECT COUNT(*) as unread_count 
+            FROM notifications 
+            WHERE user_id = ? AND is_read = 0
+        `).get(req.user.user_id);
+
+        res.json({ unread_count: result ? result.unread_count : 0 });
+    } catch (err) {
+        console.error('[Notifications] Count error:', err);
+        res.status(500).json({ error: 'Failed to retrieve unread notification count' });
+    }
+};
+
 exports.markAsRead = (req, res) => {
     try {
         const { id } = req.params;

@@ -258,3 +258,70 @@ exports.getMe = (req, res) => {
         }
     });
 };
+
+exports.updateProfile = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const { name, phone, location_id, password } = req.body;
+
+        if (!name && phone === undefined && location_id === undefined && !password) {
+            return res.status(400).json({ error: 'Provide at least one profile field to update' });
+        }
+
+        let passwordHash = null;
+        if (password) {
+            if (password.length < 6) {
+                return res.status(400).json({ error: 'Password must be at least 6 characters' });
+            }
+            passwordHash = await bcrypt.hash(password, 10);
+        }
+
+        const updates = [];
+        const params = [];
+
+        if (name && name.trim()) {
+            updates.push('name = ?');
+            params.push(name.trim());
+        }
+        if (phone !== undefined) {
+            updates.push('phone = ?');
+            params.push(phone ? phone.trim() : null);
+        }
+        if (location_id !== undefined) {
+            updates.push('location_id = ?');
+            params.push(location_id || null);
+        }
+        if (passwordHash) {
+            updates.push('password_hash = ?');
+            params.push(passwordHash);
+        }
+
+        params.push(userId);
+
+        db.prepare(`
+            UPDATE users
+            SET ${updates.join(', ')}
+            WHERE user_id = ?
+        `).run(...params);
+
+        logAudit(userId, 'USER_PROFILE_UPDATE', `User updated profile (${updates.map(u => u.split(' =')[0]).join(', ')})`);
+
+        const updatedUser = db.prepare(`
+            SELECT u.user_id, u.name, u.email, u.phone, u.role, u.location_id, u.reliability_score,
+                   t.technician_id, t.availability_status,
+                   l.area, l.district, l.zone
+            FROM users u
+            LEFT JOIN technicians t ON u.user_id = t.user_id
+            LEFT JOIN locations l ON u.location_id = l.location_id
+            WHERE u.user_id = ?
+        `).get(userId);
+
+        res.json({
+            message: 'Profile updated successfully',
+            user: updatedUser
+        });
+    } catch (err) {
+        console.error('[Auth] Update profile error:', err);
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
+};

@@ -65,13 +65,18 @@ app.use((err, req, res, next) => {
     });
 });
 
+const { checkMySQLConnection } = require('./src/config/mysql');
+
 // Start Server
 if (require.main === module) {
-    app.listen(PORT, () => {
+    app.listen(PORT, async () => {
         console.log(`====================================================`);
         console.log(`⚡ PowerPulse API Server running on port ${PORT}`);
         console.log(`🌐 Base URL: http://localhost:${PORT}/api`);
         console.log(`🩺 Health:   http://localhost:${PORT}/api/health`);
+        if (process.env.DB_CLIENT === 'mysql') {
+            await checkMySQLConnection();
+        }
         console.log(`====================================================`);
     });
 }

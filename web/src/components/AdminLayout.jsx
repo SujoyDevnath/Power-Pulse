@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Zap, LayoutDashboard, AlertOctagon, MessageSquareWarning, 
   CalendarClock, BarChart3, Users, ShieldAlert, LogOut, ExternalLink,
-  FileText, MapPin
+  FileText, MapPin, User
 } from 'lucide-react';
 import { OfflineBanner } from './OfflineBanner';
 
@@ -27,6 +27,7 @@ export const AdminLayout = () => {
     { name: 'Analytics & Trends', path: '/admin/analytics', icon: BarChart3 },
     { name: 'Users & Technicians', path: '/admin/users', icon: Users },
     { name: 'Security Audit Logs', path: '/admin/audit-logs', icon: ShieldAlert },
+    { name: 'Admin Profile', path: '/admin/profile', icon: User },
   ];
 
   return (
@@ -78,14 +79,14 @@ export const AdminLayout = () => {
           </NavLink>
 
           <div className="flex items-center justify-between pt-2">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-white truncate">{user?.name}</p>
+            <NavLink to="/admin/profile" className="min-w-0 flex-1 hover:opacity-80 transition group">
+              <p className="text-xs font-semibold text-white truncate group-hover:text-purple-300">{user?.name}</p>
               <p className="text-[10px] text-slate-400 truncate">{user?.email}</p>
-            </div>
+            </NavLink>
             <button
               onClick={handleLogout}
               title="Logout"
-              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors ml-1"
             >
               <LogOut className="w-4 h-4" />
             </button>

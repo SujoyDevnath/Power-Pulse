@@ -19,8 +19,12 @@ export const OutageReportingCard = ({
   activeOutage,
   reporting,
   reportResult,
-  onReport
+  onReport,
+  lastReportType
 }) => {
+  const isRedDisabled = reporting || lastReportType === 'OFF';
+  const isGreenDisabled = reporting || lastReportType === 'BACK' || (!activeOutage && !lastReportType);
+
   return (
     <div className="space-y-4">
       {/* 1. Main Status Banner */}
@@ -73,25 +77,74 @@ export const OutageReportingCard = ({
           )}
         </div>
 
-        {/* 2. Big Action Buttons: Report OFF or BACK */}
-        <div className="mt-6 pt-5 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button
-            onClick={() => onReport('OFF')}
-            disabled={reporting}
-            className="py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-base shadow-lg shadow-red-500/20 flex items-center justify-center gap-3 transition transform active:scale-98 disabled:opacity-50"
-          >
-            <ZapOff className="w-6 h-6" />
-            <span>Report Electricity OFF</span>
-          </button>
+        {/* 2. Action Buttons: One-Click Toggle & Anti-Spam Protection */}
+        <div className="mt-6 pt-5 border-t border-slate-200/80">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Red Button: Report OFF */}
+            {lastReportType === 'OFF' ? (
+              <button
+                type="button"
+                disabled
+                className="py-4 px-6 rounded-2xl bg-rose-50 border-2 border-rose-200 text-rose-600 font-bold text-base flex items-center justify-center gap-2.5 cursor-not-allowed shadow-none transition"
+                title="You have already reported power outage. Click 'Report Electricity BACK' when power returns."
+              >
+                <CheckCircle2 className="w-5 h-5 text-rose-500 shrink-0" />
+                <span>Electricity OFF Reported ✓</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onReport('OFF')}
+                disabled={isRedDisabled}
+                className="py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-base shadow-lg shadow-red-500/20 flex items-center justify-center gap-3 transition transform active:scale-98 disabled:opacity-50 cursor-pointer"
+              >
+                <ZapOff className="w-6 h-6 shrink-0" />
+                <span>Report Electricity OFF</span>
+              </button>
+            )}
 
-          <button
-            onClick={() => onReport('BACK')}
-            disabled={reporting}
-            className="py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-base shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 transition transform active:scale-98 disabled:opacity-50"
-          >
-            <Zap className="w-6 h-6 fill-white" />
-            <span>Report Electricity BACK</span>
-          </button>
+            {/* Green Button: Report BACK */}
+            {isGreenDisabled ? (
+              <button
+                type="button"
+                disabled
+                className="py-4 px-6 rounded-2xl bg-emerald-50/70 border-2 border-emerald-200/80 text-emerald-600 font-bold text-base flex items-center justify-center gap-2.5 cursor-not-allowed shadow-none transition"
+                title={lastReportType === 'BACK' ? "You have already confirmed power restored." : "Power grid is currently normal."}
+              >
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                <span>{lastReportType === 'BACK' ? 'Power Restored ✓' : 'Grid Online & Normal ✓'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onReport('BACK')}
+                disabled={reporting}
+                className="py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-base shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 transition transform active:scale-98 disabled:opacity-50 cursor-pointer ring-2 ring-emerald-400/30"
+              >
+                <Zap className="w-6 h-6 fill-white shrink-0" />
+                <span>Report Electricity BACK</span>
+              </button>
+            )}
+          </div>
+
+          {/* User Guidance Micro-text */}
+          <div className="mt-3 flex items-center justify-between text-[11px] px-1">
+            {lastReportType === 'OFF' ? (
+              <span className="text-rose-600 font-medium flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                Your outage signal is registered. When power returns to your building, click &quot;Report Electricity BACK&quot;.
+              </span>
+            ) : lastReportType === 'BACK' ? (
+              <span className="text-emerald-700 font-medium flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                Your power line is marked normal. Click &quot;Report Electricity OFF&quot; if your power goes out.
+              </span>
+            ) : (
+              <span className="text-slate-500 font-medium">
+                Click &quot;Report Electricity OFF&quot; if you experience a blackout in your area.
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

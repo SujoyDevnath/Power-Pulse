@@ -153,9 +153,16 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 -- Indexes for Query Acceleration
 CREATE INDEX IF NOT EXISTS idx_reports_location_time ON reports(location_id, reported_at);
+CREATE INDEX IF NOT EXISTS idx_reports_user_time ON reports(user_id, reported_at);
+CREATE INDEX IF NOT EXISTS idx_reports_user_received ON reports(user_id, received_at);
 CREATE INDEX IF NOT EXISTS idx_incidents_location_status ON incidents(location_id, status);
 CREATE INDEX IF NOT EXISTS idx_complaints_user_status ON complaints(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_assignments_tech ON assignments(technician_id, status);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read, created_at);
+CREATE INDEX IF NOT EXISTS idx_meter_readings_user_time ON meter_readings(user_id, reading_time DESC);
+CREATE INDEX IF NOT EXISTS idx_bills_user_status ON smart_meter_bills(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_audit_user_time ON audit_logs(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_planned_location_date ON planned_outages(location_id, outage_date);
 
 -- 13. JWT Refresh Tokens (Dual-token rotation)
 CREATE TABLE IF NOT EXISTS refresh_tokens (

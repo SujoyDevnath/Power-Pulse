@@ -19,6 +19,7 @@ import { AdminPlanned } from './pages/AdminPlanned';
 import { AdminAnalytics } from './pages/AdminAnalytics';
 import { AdminUsers } from './pages/AdminUsers';
 import { AdminAuditLogs } from './pages/AdminAuditLogs';
+import { AdminProfile } from './pages/AdminProfile';
 
 // Technician Pages
 import { TechLayout } from './components/TechLayout';
@@ -62,6 +63,7 @@ export function App() {
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="audit-logs" element={<AdminAuditLogs />} />
+            <Route path="profile" element={<AdminProfile />} />
           </Route>
 
           {/* 3 Technician Pages (Source §8.3) */}

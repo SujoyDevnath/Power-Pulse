@@ -95,6 +95,18 @@ async function runTests() {
   });
   const consumerToken = freshLogin.data.token;
 
+  // 1.6 Universal Profile Update Test (Consumer updates Name, Phone & Location)
+  const profileUpdateRes = await request('/auth/profile', {
+    method: 'PATCH',
+    token: consumerToken,
+    body: {
+      name: 'Tanvir Hossain Updated',
+      phone: '01720-999888',
+      location_id: 1
+    }
+  });
+  assert(profileUpdateRes.status === 200 && profileUpdateRes.data.user.phone === '01720-999888', 'PATCH /auth/profile successfully updated consumer profile');
+
   // ==========================================
   // 2. CITIZEN (CONSUMER) WORKFLOWS
   // ==========================================
@@ -378,6 +390,10 @@ async function runTests() {
   const afterMarkAll = await request('/notifications', { token: consumerToken });
   assert(afterMarkAll.data.notifications.every(n => n.is_read === 1), 'All consumer notifications now have is_read = 1');
 
+  // Verify unread count is 0 after mark-all
+  const countZeroRes = await request('/notifications/unread-count', { token: consumerToken });
+  assert(countZeroRes.status === 200 && countZeroRes.data.unread_count === 0, 'GET /notifications/unread-count returns 0 after mark-all');
+
   // 5.4 Schedule a Planned Load-Shedding Outage by Admin and Verify Citizen Notification
   const futureDate = new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0];
   const createPlanned = await request('/planned', {
@@ -393,10 +409,13 @@ async function runTests() {
   });
   assert(createPlanned.status === 201, 'Admin successfully scheduled planned load-shedding');
 
-  // Verify Citizen in Location 1 received planned outage notification
+  // Verify Citizen in Location 1 received planned outage notification and unread-count increased
   const notifAfterPlanned = await request('/notifications', { token: consumerToken });
   const hasPlannedAlert = notifAfterPlanned.data.notifications.some(n => n.title.includes('Scheduled Load-Shedding'));
   assert(hasPlannedAlert, 'Citizen received broadcast notification for Scheduled Load-Shedding in their zone');
+
+  const countAfterPlanned = await request('/notifications/unread-count', { token: consumerToken });
+  assert(countAfterPlanned.status === 200 && countAfterPlanned.data.unread_count >= 1, `Unread count badge reflects new alert (${countAfterPlanned.data.unread_count} unread)`);
 
   console.log('\n======================================================');
   console.log('🎉 ALL 25 INTEGRATION WORKFLOW TESTS PASSED CLEANLY! ');
