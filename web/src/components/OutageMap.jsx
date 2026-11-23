@@ -21,9 +21,9 @@ function AutoFitBounds({ locations = [] }) {
   const map = useMap();
   useEffect(() => {
     map.invalidateSize();
-    const valid = locations.filter((l) => l.latitude && l.longitude);
+    const valid = locations.filter((l) => !isNaN(parseFloat(l.latitude)) && !isNaN(parseFloat(l.longitude)));
     if (valid.length > 0) {
-      const bounds = L.latLngBounds(valid.map((l) => [l.latitude, l.longitude]));
+      const bounds = L.latLngBounds(valid.map((l) => [parseFloat(l.latitude), parseFloat(l.longitude)]));
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
     }
   }, [locations, map]);
@@ -141,7 +141,9 @@ export const OutageMap = ({
         />
 
         {locations.map((loc) => {
-          if (!loc.latitude || !loc.longitude) return null;
+          const lat = parseFloat(loc.latitude);
+          const lng = parseFloat(loc.longitude);
+          if (isNaN(lat) || isNaN(lng)) return null;
 
           const activeOutage = incidentByLocation.get(Number(loc.location_id));
           const hasOutage = Boolean(activeOutage);
@@ -153,7 +155,7 @@ export const OutageMap = ({
           return (
             <Marker
               key={loc.location_id}
-              position={[loc.latitude, loc.longitude]}
+              position={[lat, lng]}
               icon={icon}
             >
               {/* 🏷️ Permanent Area Name Tag on the Map */}
@@ -233,8 +235,8 @@ export const OutageMap = ({
                   )}
 
                   <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-100 flex justify-between font-mono">
-                    <span>{loc.latitude?.toFixed(4)}°N</span>
-                    <span>{loc.longitude?.toFixed(4)}°E</span>
+                    <span>{lat.toFixed(4)}°N</span>
+                    <span>{lng.toFixed(4)}°E</span>
                   </div>
                 </div>
               </Popup>
