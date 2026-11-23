@@ -3,9 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { 
-  Zap, ShieldCheck, Wrench, User, AlertCircle, 
+  Zap, User, AlertCircle, 
   ArrowRight, Eye, EyeOff, UserPlus, CheckCircle2,
-  Sparkles, Lock, Mail, Phone, MapPin
+  Lock, Mail, Phone
 } from 'lucide-react';
 
 export const Login = ({ initialMode = 'login' }) => {
@@ -132,14 +132,6 @@ export const Login = ({ initialMode = 'login' }) => {
     }
   };
 
-  // Quick 1-click Demo Account filler for evaluation
-  const quickFill = (userEmail, userPass) => {
-    if (mode !== 'login') setMode('login');
-    setLoginEmail(userEmail);
-    setLoginPassword(userPass);
-    setError('');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
       <div className="max-w-md w-full my-6">
@@ -152,8 +144,8 @@ export const Login = ({ initialMode = 'login' }) => {
           <p className="text-xs text-slate-400 mt-1">
             Smart Electricity Outage Intelligence & Grid Management
           </p>
-          <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-sky-400 border border-slate-700">
-            UFTB | PROG 212 AWAD
+          <span className="inline-block mt-2 px-3 py-0.5 rounded-full text-[11px] font-medium bg-slate-800/80 text-sky-400 border border-slate-700/80">
+            Official Utility & Consumer Access Portal
           </span>
         </div>
 
@@ -269,42 +261,6 @@ export const Login = ({ initialMode = 'login' }) => {
                   Create one now
                 </button>
               </p>
-
-              {/* Quick-Demo Auto-Fill Buttons */}
-              <div className="mt-5 pt-5 border-t border-slate-100">
-                <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center justify-center gap-1">
-                  <Sparkles className="w-3 h-3 text-sky-500" />
-                  <span>1-Click Demo Profiles (For Evaluation)</span>
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => quickFill('admin@powerpulse.com', 'Admin@123')}
-                    className="p-2 rounded-xl border border-sky-100 bg-sky-50/60 hover:bg-sky-100 text-sky-800 text-xs font-semibold text-center flex flex-col items-center gap-1 transition shadow-2xs"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-sky-600" />
-                    <span>Admin</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => quickFill('rahim.tech@powerpulse.com', 'Tech@123')}
-                    className="p-2 rounded-xl border border-amber-100 bg-amber-50/60 hover:bg-amber-100 text-amber-800 text-xs font-semibold text-center flex flex-col items-center gap-1 transition shadow-2xs"
-                  >
-                    <Wrench className="w-4 h-4 text-amber-600" />
-                    <span>Technician</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => quickFill('tanvir@gmail.com', 'User@123')}
-                    className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold text-center flex flex-col items-center gap-1 transition shadow-2xs"
-                  >
-                    <User className="w-4 h-4 text-slate-600" />
-                    <span>Consumer</span>
-                  </button>
-                </div>
-              </div>
             </form>
           ) : (
             /* ========================================= */
@@ -442,6 +398,11 @@ export const Login = ({ initialMode = 'login' }) => {
             </form>
           )}
         </div>
+
+        {/* Security & System Info Footer */}
+        <p className="text-center text-[11px] text-slate-400 mt-5">
+          Authorized Municipal & Consumer Grid Access • PowerPulse Utility Operations
+        </p>
       </div>
     </div>
   );
