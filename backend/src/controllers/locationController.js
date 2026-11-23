@@ -1,8 +1,8 @@
 const db = require('../config/db');
 
-exports.getAllLocations = (req, res) => {
+exports.getAllLocations = async (req, res) => {
     try {
-        const locations = db.prepare(`
+        const locations = await db.prepare(`
             SELECT l.*, 
                    (SELECT COUNT(*) FROM incidents i WHERE i.location_id = l.location_id AND i.status = 'open') as active_outages
             FROM locations l
@@ -16,7 +16,7 @@ exports.getAllLocations = (req, res) => {
     }
 };
 
-exports.createLocation = (req, res) => {
+exports.createLocation = async (req, res) => {
     try {
         const { district, area, zone, latitude, longitude } = req.body;
         if (!district || !area || !zone) {
@@ -28,7 +28,7 @@ exports.createLocation = (req, res) => {
             VALUES (?, ?, ?, ?, ?)
         `);
 
-        const result = stmt.run(district.trim(), area.trim(), zone.trim(), latitude || null, longitude || null);
+        const result = await stmt.run(district.trim(), area.trim(), zone.trim(), latitude || null, longitude || null);
         res.status(201).json({
             message: 'Location added successfully',
             location_id: result.lastInsertRowid

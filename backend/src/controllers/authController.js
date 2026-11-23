@@ -13,7 +13,7 @@ const logAudit = require('../utils/auditLogger');
 /**
  * Generate Access & Refresh Token pair with database persistence
  */
-function generateTokens(user) {
+async function generateTokens(user) {
     const payload = {
         userId: user.user_id,
         role: user.role,
@@ -30,9 +30,9 @@ function generateTokens(user) {
     );
 
     // Store refresh token in database (7 days validity)
-    db.prepare(`
+    await db.prepare(`
         INSERT INTO refresh_tokens (user_id, token, expires_at)
-        VALUES (?, ?, datetime('now', '+7 days'))
+        VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))
     `).run(user.user_id, refreshToken);
 
     return { accessToken, refreshToken };
@@ -46,7 +46,7 @@ exports.register = async (req, res) => {
             return res.status(400).json({ error: 'Name, email, and password are required' });
         }
 
-        const existing = db.prepare('SELECT user_id FROM users WHERE email = ?').get(email.toLowerCase().trim());
+        const existing = await db.prepare('SELECT user_id FROM users WHERE email = ?').get(email.toLowerCase().trim());
         if (existing) {
             return res.status(409).json({ error: 'An account with this email already exists' });
         }
@@ -57,7 +57,7 @@ exports.register = async (req, res) => {
             VALUES (?, ?, ?, ?, 'consumer', ?, 0.50)
         `);
 
-        const result = stmt.run(name.trim(), email.toLowerCase().trim(), phone || null, password_hash, location_id || null);
+        const result = await stmt.run(name.trim(), email.toLowerCase().trim(), phone || null, password_hash, location_id || null);
         const userId = result.lastInsertRowid;
 
         const userObj = {
@@ -69,9 +69,9 @@ exports.register = async (req, res) => {
             reliability_score: 0.50
         };
 
-        const { accessToken, refreshToken } = generateTokens(userObj);
+        const { accessToken, refreshToken } = await generateTokens(userObj);
 
-        logAudit(userId, 'USER_REGISTER', `New consumer registered: ${email}`);
+        await logAudit(userId, 'USER_REGISTER', `New consumer registered: ${email}`);
 
         res.status(201).json({
             message: 'User registered successfully',
@@ -94,7 +94,7 @@ exports.login = async (req, res) => {
             return res.status(400).json({ error: 'Email and password are required' });
         }
 
-        const user = db.prepare(`
+        const user = await db.prepare(`
             SELECT u.*, t.technician_id, t.availability_status, l.area, l.district, l.zone
             FROM users u
             LEFT JOIN technicians t ON u.user_id = t.user_id
@@ -111,9 +111,9 @@ exports.login = async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
-        const { accessToken, refreshToken } = generateTokens(user);
+        const { accessToken, refreshToken } = await generateTokens(user);
 
-        logAudit(user.user_id, 'USER_LOGIN', `User logged in with role: ${user.role}`);
+        await logAudit(user.user_id, 'USER_LOGIN', `User logged in with role: ${user.role}`);
 
         res.json({
             message: 'Login successful',
@@ -142,9 +142,8 @@ exports.login = async (req, res) => {
 
 /**
  * 🔄 Silent Refresh Token Rotation
- * Generates a new short-lived Access Token and rotates Refresh Token
  */
-exports.refreshToken = (req, res) => {
+exports.refreshToken = async (req, res) => {
     try {
         const { refreshToken } = req.body;
 
@@ -167,9 +166,9 @@ exports.refreshToken = (req, res) => {
         }
 
         // 2. Check if token exists and is valid in database
-        const storedToken = db.prepare(`
+        const storedToken = await db.prepare(`
             SELECT * FROM refresh_tokens 
-            WHERE token = ? AND expires_at > datetime('now')
+            WHERE token = ? AND expires_at > NOW()
         `).get(refreshToken);
 
         if (!storedToken) {
@@ -180,7 +179,7 @@ exports.refreshToken = (req, res) => {
         }
 
         // 3. Fetch user details
-        const user = db.prepare(`
+        const user = await db.prepare(`
             SELECT u.*, t.technician_id, t.availability_status 
             FROM users u 
             LEFT JOIN technicians t ON u.user_id = t.user_id 
@@ -192,8 +191,8 @@ exports.refreshToken = (req, res) => {
         }
 
         // 4. Token Rotation: Delete old refresh token, generate fresh pair
-        db.prepare('DELETE FROM refresh_tokens WHERE token = ?').run(refreshToken);
-        const tokens = generateTokens(user);
+        await db.prepare('DELETE FROM refresh_tokens WHERE token = ?').run(refreshToken);
+        const tokens = await generateTokens(user);
 
         res.json({
             message: 'Token refreshed successfully',
@@ -208,9 +207,9 @@ exports.refreshToken = (req, res) => {
 };
 
 /**
- * 🚪 Secure Logout: Invalidate refresh token & blacklist current access token
+ * 🚪 Secure Logout
  */
-exports.logout = (req, res) => {
+exports.logout = async (req, res) => {
     try {
         const { refreshToken } = req.body;
         const currentAccessToken = req.token;
@@ -218,25 +217,25 @@ exports.logout = (req, res) => {
 
         // 1. Blacklist current access token until its natural expiration
         if (currentAccessToken) {
-            db.prepare(`
-                INSERT OR IGNORE INTO blacklisted_tokens (token, expires_at)
-                VALUES (?, datetime('now', '+1 hour'))
+            await db.prepare(`
+                INSERT IGNORE INTO blacklisted_tokens (token, expires_at)
+                VALUES (?, DATE_ADD(NOW(), INTERVAL 1 HOUR))
             `).run(currentAccessToken);
         }
 
         // 2. Delete specified or all user refresh tokens
         if (refreshToken) {
-            db.prepare('DELETE FROM refresh_tokens WHERE token = ?').run(refreshToken);
+            await db.prepare('DELETE FROM refresh_tokens WHERE token = ?').run(refreshToken);
         } else if (userId) {
-            db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(userId);
+            await db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(userId);
         }
 
-        // 3. Periodic housekeeping: prune expired blacklisted and refresh tokens
-        db.prepare("DELETE FROM refresh_tokens WHERE expires_at < datetime('now')").run();
-        db.prepare("DELETE FROM blacklisted_tokens WHERE expires_at < datetime('now')").run();
+        // 3. Prune expired blacklisted and refresh tokens
+        await db.prepare("DELETE FROM refresh_tokens WHERE expires_at < NOW()").run();
+        await db.prepare("DELETE FROM blacklisted_tokens WHERE expires_at < NOW()").run();
 
         if (userId) {
-            logAudit(userId, 'USER_LOGOUT', `User logged out; tokens invalidated`);
+            await logAudit(userId, 'USER_LOGOUT', `User logged out; tokens invalidated`);
         }
 
         res.json({ message: 'Session logged out successfully' });
@@ -246,17 +245,22 @@ exports.logout = (req, res) => {
     }
 };
 
-exports.getMe = (req, res) => {
-    const loc = req.user.location_id 
-        ? db.prepare('SELECT district, area, zone FROM locations WHERE location_id = ?').get(req.user.location_id)
-        : null;
+exports.getMe = async (req, res) => {
+    try {
+        const loc = req.user.location_id 
+            ? await db.prepare('SELECT district, area, zone FROM locations WHERE location_id = ?').get(req.user.location_id)
+            : null;
 
-    res.json({
-        user: {
-            ...req.user,
-            location: loc
-        }
-    });
+        res.json({
+            user: {
+                ...req.user,
+                location: loc
+            }
+        });
+    } catch (err) {
+        console.error('[Auth] getMe error:', err);
+        res.status(500).json({ error: 'Failed to retrieve profile' });
+    }
 };
 
 exports.updateProfile = async (req, res) => {
@@ -298,15 +302,15 @@ exports.updateProfile = async (req, res) => {
 
         params.push(userId);
 
-        db.prepare(`
+        await db.prepare(`
             UPDATE users
             SET ${updates.join(', ')}
             WHERE user_id = ?
         `).run(...params);
 
-        logAudit(userId, 'USER_PROFILE_UPDATE', `User updated profile (${updates.map(u => u.split(' =')[0]).join(', ')})`);
+        await logAudit(userId, 'USER_PROFILE_UPDATE', `User updated profile (${updates.map(u => u.split(' =')[0]).join(', ')})`);
 
-        const updatedUser = db.prepare(`
+        const updatedUser = await db.prepare(`
             SELECT u.user_id, u.name, u.email, u.phone, u.role, u.location_id, u.reliability_score,
                    t.technician_id, t.availability_status,
                    l.area, l.district, l.zone

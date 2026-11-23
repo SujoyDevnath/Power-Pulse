@@ -2,7 +2,7 @@ const db = require('../config/db');
 const OutageService = require('../services/outageService');
 const logAudit = require('../utils/auditLogger');
 
-exports.getActiveIncidents = (req, res) => {
+exports.getActiveIncidents = async (req, res) => {
     try {
         const { location_id } = req.query;
         let query = `
@@ -22,7 +22,7 @@ exports.getActiveIncidents = (req, res) => {
 
         query += ' ORDER BY i.confidence_score DESC, i.start_time DESC';
 
-        const incidents = db.prepare(query).all(...params);
+        const incidents = await db.prepare(query).all(...params);
         res.json({ incidents });
     } catch (err) {
         console.error('[Incidents] Active fetch error:', err);
@@ -30,10 +30,10 @@ exports.getActiveIncidents = (req, res) => {
     }
 };
 
-exports.getIncidentHistory = (req, res) => {
+exports.getIncidentHistory = async (req, res) => {
     try {
         const { limit = 50 } = req.query;
-        const incidents = db.prepare(`
+        const incidents = await db.prepare(`
             SELECT i.*, l.district, l.area, l.zone,
                    (SELECT COUNT(*) FROM reports r WHERE r.incident_id = i.incident_id) as total_reports
             FROM incidents i
@@ -50,10 +50,10 @@ exports.getIncidentHistory = (req, res) => {
     }
 };
 
-exports.getIncidentDetails = (req, res) => {
+exports.getIncidentDetails = async (req, res) => {
     try {
         const { id } = req.params;
-        const incident = db.prepare(`
+        const incident = await db.prepare(`
             SELECT i.*, l.district, l.area, l.zone, l.latitude, l.longitude
             FROM incidents i
             JOIN locations l ON i.location_id = l.location_id
@@ -64,7 +64,7 @@ exports.getIncidentDetails = (req, res) => {
             return res.status(404).json({ error: 'Incident not found' });
         }
 
-        const reports = db.prepare(`
+        const reports = await db.prepare(`
             SELECT r.*, u.name as user_name, u.reliability_score
             FROM reports r
             JOIN users u ON r.user_id = u.user_id
@@ -72,7 +72,7 @@ exports.getIncidentDetails = (req, res) => {
             ORDER BY r.reported_at ASC
         `).all(id);
 
-        const complaints = db.prepare(`
+        const complaints = await db.prepare(`
             SELECT c.*, u.name as user_name, u.phone as user_phone
             FROM complaints c
             JOIN users u ON c.user_id = u.user_id
@@ -90,21 +90,21 @@ exports.getIncidentDetails = (req, res) => {
     }
 };
 
-exports.confirmIncident = (req, res) => {
+exports.confirmIncident = async (req, res) => {
     try {
         const { id } = req.params;
-        const incident = db.prepare('SELECT * FROM incidents WHERE incident_id = ?').get(id);
+        const incident = await db.prepare('SELECT * FROM incidents WHERE incident_id = ?').get(id);
         if (!incident) {
             return res.status(404).json({ error: 'Incident not found' });
         }
 
-        db.prepare(`
+        await db.prepare(`
             UPDATE incidents
             SET confidence_score = 100, classification = 'confirmed', manually_reviewed = 1
             WHERE incident_id = ?
         `).run(id);
 
-        logAudit(req.user.user_id, 'CONFIRM_INCIDENT', `Admin confirmed incident #${id} to 100%`);
+        await logAudit(req.user.user_id, 'CONFIRM_INCIDENT', `Admin confirmed incident #${id} to 100%`);
 
         res.json({ message: 'Incident manually confirmed by administrator', incident_id: id });
     } catch (err) {
@@ -113,12 +113,12 @@ exports.confirmIncident = (req, res) => {
     }
 };
 
-exports.dismissIncident = (req, res) => {
+exports.dismissIncident = async (req, res) => {
     try {
         const { id } = req.params;
-        const result = OutageService.closeIncident(id, 'dismissed');
+        const result = await OutageService.closeIncident(id, 'dismissed');
 
-        logAudit(req.user.user_id, 'DISMISS_INCIDENT', `Admin dismissed incident #${id} as false alarm`);
+        await logAudit(req.user.user_id, 'DISMISS_INCIDENT', `Admin dismissed incident #${id} as false alarm`);
 
         res.json({ message: 'Incident dismissed as false alarm', result });
     } catch (err) {
@@ -127,12 +127,12 @@ exports.dismissIncident = (req, res) => {
     }
 };
 
-exports.restoreIncident = (req, res) => {
+exports.restoreIncident = async (req, res) => {
     try {
         const { id } = req.params;
-        const result = OutageService.closeIncident(id, 'restored');
+        const result = await OutageService.closeIncident(id, 'restored');
 
-        logAudit(req.user.user_id, 'RESTORE_INCIDENT', `Admin marked incident #${id} as restored`);
+        await logAudit(req.user.user_id, 'RESTORE_INCIDENT', `Admin marked incident #${id} as restored`);
 
         res.json({ message: 'Incident marked restored', result });
     } catch (err) {

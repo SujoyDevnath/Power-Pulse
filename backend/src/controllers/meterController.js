@@ -2,12 +2,12 @@ const db = require('../config/db');
 const logAudit = require('../utils/auditLogger');
 const { sendNotification } = require('../utils/notificationService');
 
-exports.getUsage = (req, res) => {
+exports.getUsage = async (req, res) => {
     try {
         const userId = req.user.user_id;
 
         // Fetch recent meter readings
-        const readings = db.prepare(`
+        const readings = await db.prepare(`
             SELECT * FROM meter_readings 
             WHERE user_id = ? 
             ORDER BY reading_time DESC 
@@ -15,7 +15,7 @@ exports.getUsage = (req, res) => {
         `).all(userId);
 
         // Fetch current active bill
-        const currentBill = db.prepare(`
+        const currentBill = await db.prepare(`
             SELECT * FROM smart_meter_bills 
             WHERE user_id = ? AND status = 'unpaid'
             ORDER BY created_at DESC 
@@ -35,9 +35,9 @@ exports.getUsage = (req, res) => {
     }
 };
 
-exports.getBills = (req, res) => {
+exports.getBills = async (req, res) => {
     try {
-        const bills = db.prepare(`
+        const bills = await db.prepare(`
             SELECT * FROM smart_meter_bills 
             WHERE user_id = ? 
             ORDER BY created_at DESC
@@ -50,9 +50,9 @@ exports.getBills = (req, res) => {
     }
 };
 
-exports.getCurrentBill = (req, res) => {
+exports.getCurrentBill = async (req, res) => {
     try {
-        let bill = db.prepare(`
+        let bill = await db.prepare(`
             SELECT * FROM smart_meter_bills 
             WHERE user_id = ? AND status = 'unpaid'
             ORDER BY created_at DESC 
@@ -61,12 +61,12 @@ exports.getCurrentBill = (req, res) => {
 
         // If no bill exists, create a default demo bill matching proposal figure (143.2 kWh / 1280 Tk)
         if (!bill) {
-            const insert = db.prepare(`
+            const insert = await db.prepare(`
                 INSERT INTO smart_meter_bills (user_id, month, consumption_kwh, amount, status)
                 VALUES (?, '2026-11', 143.2, 1280.00, 'unpaid')
             `).run(req.user.user_id);
 
-            bill = db.prepare('SELECT * FROM smart_meter_bills WHERE bill_id = ?').get(insert.lastInsertRowid);
+            bill = await db.prepare('SELECT * FROM smart_meter_bills WHERE bill_id = ?').get(insert.lastInsertRowid);
         }
 
         res.json({ bill });
@@ -76,12 +76,12 @@ exports.getCurrentBill = (req, res) => {
     }
 };
 
-exports.payBill = (req, res) => {
+exports.payBill = async (req, res) => {
     try {
         const { id } = req.params;
         const { transaction_id, sender_phone, payment_method } = req.body;
 
-        const bill = db.prepare('SELECT * FROM smart_meter_bills WHERE bill_id = ? AND user_id = ?').get(id, req.user.user_id);
+        const bill = await db.prepare('SELECT * FROM smart_meter_bills WHERE bill_id = ? AND user_id = ?').get(id, req.user.user_id);
         if (!bill) {
             return res.status(404).json({ error: 'Bill not found' });
         }
@@ -103,13 +103,13 @@ exports.payBill = (req, res) => {
             return res.status(400).json({ error: 'Invalid bKash Transaction ID. Must be at least 6 alphanumeric characters.' });
         }
 
-        db.prepare(`
+        await db.prepare(`
             UPDATE smart_meter_bills 
-            SET status = 'paid', transaction_id = ?, paid_at = datetime('now')
+            SET status = 'paid', transaction_id = ?, paid_at = NOW()
             WHERE bill_id = ?
         `).run(finalTrxId, id);
 
-        logAudit(
+        await logAudit(
             req.user.user_id, 
             'PAY_BILL_BKASH', 
             `bKash bill payment of ৳${bill.amount} confirmed. Sender: ${sender_phone || 'N/A'}, TrxID: ${finalTrxId}`
@@ -117,7 +117,7 @@ exports.payBill = (req, res) => {
 
         // Notify user with payment receipt
         try {
-            sendNotification(
+            await sendNotification(
                 req.user.user_id,
                 '🧾 bKash Payment Confirmed',
                 `Your electricity bill payment of ৳${bill.amount} via bKash has been verified. TrxID: ${finalTrxId}. Thank you!`

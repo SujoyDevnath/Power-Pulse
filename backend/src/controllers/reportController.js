@@ -3,7 +3,7 @@ const db = require('../config/db');
 const OutageService = require('../services/outageService');
 const logAudit = require('../utils/auditLogger');
 
-exports.submitReport = (req, res) => {
+exports.submitReport = async (req, res) => {
     try {
         const { type, location_id, client_uuid, reported_at } = req.body;
         const userId = req.user.user_id;
@@ -21,7 +21,7 @@ exports.submitReport = (req, res) => {
 
         // 0. Idempotency check: If report with same client_uuid was already processed
         if (client_uuid) {
-            const existing = db.prepare('SELECT report_id, type FROM reports WHERE client_uuid = ?').get(client_uuid);
+            const existing = await db.prepare('SELECT report_id, type FROM reports WHERE client_uuid = ?').get(client_uuid);
             if (existing) {
                 return res.status(200).json({
                     message: `Power ${normalizedType} report already synced`,
@@ -37,28 +37,28 @@ exports.submitReport = (req, res) => {
         let isSpam = 0;
 
         // 1. Spam check: Has user submitted > 5 reports in the last 1 minute?
-        const recentCount = db.prepare(`
+        const recentCountRow = await db.prepare(`
             SELECT COUNT(*) as cnt 
             FROM reports 
             WHERE user_id = ? 
-              AND received_at >= datetime('now', '-1 minute')
-        `).get(userId).cnt;
+              AND received_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)
+        `).get(userId);
+        const recentCount = recentCountRow ? recentCountRow.cnt : 0;
 
         if (recentCount >= 5) {
             isSpam = 1;
             // Penalize spammer reliability
-            db.prepare(`
+            await db.prepare(`
                 UPDATE users 
-                SET reliability_score = MAX(0.05, ROUND(reliability_score - 0.10, 2)) 
+                SET reliability_score = GREATEST(0.05, ROUND(reliability_score - 0.10, 2)) 
                 WHERE user_id = ?
             `).run(userId);
-            logAudit(userId, 'SPAM_FLAGGED', `User exceeded 5 reports in 1 minute. Reliability penalized.`);
+            await logAudit(userId, 'SPAM_FLAGGED', `User exceeded 5 reports in 1 minute. Reliability penalized.`);
         }
 
         // 2. Duplicate check: Same user, same location, same type within last 2 minutes
-        // (If switching between OFF and BACK, it is a grid state toggle, not a duplicate!)
         if (!isSpam) {
-            const lastReport = db.prepare(`
+            const lastReport = await db.prepare(`
                 SELECT type 
                 FROM reports 
                 WHERE user_id = ? AND location_id = ? 
@@ -66,13 +66,13 @@ exports.submitReport = (req, res) => {
             `).get(userId, reportLocationId);
 
             if (lastReport && lastReport.type === normalizedType) {
-                const duplicateCheck = db.prepare(`
+                const duplicateCheck = await db.prepare(`
                     SELECT report_id 
                     FROM reports 
                     WHERE user_id = ? 
                       AND location_id = ? 
                       AND type = ? 
-                      AND received_at >= datetime('now', '-2 minutes')
+                      AND received_at >= DATE_SUB(NOW(), INTERVAL 2 MINUTE)
                 `).get(userId, reportLocationId, normalizedType);
 
                 if (duplicateCheck) {
@@ -83,21 +83,21 @@ exports.submitReport = (req, res) => {
 
         // 3. Insert report
         const reportUuid = client_uuid || uuidv4();
-        const reportTime = reported_at || new Date().toISOString();
+        const reportTime = reported_at ? reported_at.replace('T', ' ').slice(0, 19) : new Date().toISOString().slice(0, 19).replace('T', ' ');
         const insertStmt = db.prepare(`
             INSERT INTO reports (user_id, location_id, type, reported_at, sync_status, is_duplicate, is_spam, client_uuid)
             VALUES (?, ?, ?, ?, 'synced', ?, ?, ?)
         `);
 
-        const result = insertStmt.run(userId, reportLocationId, normalizedType, reportTime, isDuplicate, isSpam, reportUuid);
+        const result = await insertStmt.run(userId, reportLocationId, normalizedType, reportTime, isDuplicate, isSpam, reportUuid);
         const reportId = result.lastInsertRowid;
 
         // 4. Trigger Outage Confidence Engine
         let evaluation = null;
         if (normalizedType === 'OFF' && !isSpam) {
-            evaluation = OutageService.processReport(reportLocationId);
+            evaluation = await OutageService.processReport(reportLocationId);
         } else if (normalizedType === 'BACK') {
-            evaluation = OutageService.processBackReport(reportLocationId);
+            evaluation = await OutageService.processBackReport(reportLocationId);
         }
 
         res.status(201).json({
@@ -113,9 +113,9 @@ exports.submitReport = (req, res) => {
     }
 };
 
-exports.getMyReports = (req, res) => {
+exports.getMyReports = async (req, res) => {
     try {
-        const reports = db.prepare(`
+        const reports = await db.prepare(`
             SELECT r.*, l.area, l.district, l.zone, i.confidence_score, i.status as incident_status
             FROM reports r
             JOIN locations l ON r.location_id = l.location_id
@@ -132,7 +132,7 @@ exports.getMyReports = (req, res) => {
     }
 };
 
-exports.getAllReports = (req, res) => {
+exports.getAllReports = async (req, res) => {
     try {
         const { location_id, type, limit = 100 } = req.query;
         let query = `
@@ -157,7 +157,7 @@ exports.getAllReports = (req, res) => {
         query += ' ORDER BY r.reported_at DESC LIMIT ?';
         params.push(parseInt(limit, 10));
 
-        const reports = db.prepare(query).all(...params);
+        const reports = await db.prepare(query).all(...params);
         res.json({ reports });
     } catch (err) {
         console.error('[Report] Get all error:', err);
@@ -165,8 +165,7 @@ exports.getAllReports = (req, res) => {
     }
 };
 
-
-exports.syncReports = (req, res) => {
+exports.syncReports = async (req, res) => {
     try {
         const { reports } = req.body;
         const userId = req.user.user_id;
@@ -176,7 +175,7 @@ exports.syncReports = (req, res) => {
         }
 
         const insertStmt = db.prepare(`
-            INSERT OR IGNORE INTO reports (user_id, location_id, type, reported_at, sync_status, is_duplicate, is_spam, client_uuid)
+            INSERT IGNORE INTO reports (user_id, location_id, type, reported_at, sync_status, is_duplicate, is_spam, client_uuid)
             VALUES (?, ?, ?, ?, 'synced', 0, 0, ?)
         `);
 
@@ -187,10 +186,10 @@ exports.syncReports = (req, res) => {
         for (const r of reports) {
             const locId = r.location_id || req.user.location_id;
             const repType = (r.type || 'OFF').toUpperCase();
-            const repTime = r.reported_at || new Date().toISOString();
+            const repTime = r.reported_at ? r.reported_at.replace('T', ' ').slice(0, 19) : new Date().toISOString().slice(0, 19).replace('T', ' ');
             const uuid = r.client_uuid || uuidv4();
 
-            const result = insertStmt.run(userId, locId, repType, repTime, uuid);
+            const result = await insertStmt.run(userId, locId, repType, repTime, uuid);
             if (result.changes > 0) {
                 insertedCount++;
                 if (repType === 'BACK') {
@@ -202,10 +201,10 @@ exports.syncReports = (req, res) => {
         }
 
         for (const locId of locationsToEvaluateOff) {
-            OutageService.processReport(locId);
+            await OutageService.processReport(locId);
         }
         for (const locId of locationsToEvaluateBack) {
-            OutageService.processBackReport(locId);
+            await OutageService.processBackReport(locId);
         }
 
         res.json({

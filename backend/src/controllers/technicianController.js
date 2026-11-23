@@ -2,14 +2,14 @@ const db = require('../config/db');
 const logAudit = require('../utils/auditLogger');
 const { sendNotification } = require('../utils/notificationService');
 
-exports.getMyAssignments = (req, res) => {
+exports.getMyAssignments = async (req, res) => {
     try {
         const technicianId = req.user.technician_id;
         if (!technicianId) {
             return res.status(403).json({ error: 'User does not possess a technician profile' });
         }
 
-        const assignments = db.prepare(`
+        const assignments = await db.prepare(`
             SELECT a.*, c.category, c.description, c.status as complaint_status, c.created_at as complaint_created_at,
                    u.name as consumer_name, u.phone as consumer_phone,
                    l.area, l.district, l.zone
@@ -28,7 +28,7 @@ exports.getMyAssignments = (req, res) => {
     }
 };
 
-exports.updateAssignmentStatus = (req, res) => {
+exports.updateAssignmentStatus = async (req, res) => {
     try {
         const { id } = req.params; // assignment_id
         const { status, remarks } = req.body;
@@ -40,7 +40,7 @@ exports.updateAssignmentStatus = (req, res) => {
         }
 
         // Verify assignment ownership (technician can only modify their own tickets)
-        const assignment = db.prepare(`
+        const assignment = await db.prepare(`
             SELECT * FROM assignments WHERE assignment_id = ? AND technician_id = ?
         `).get(id, technicianId);
 
@@ -49,14 +49,14 @@ exports.updateAssignmentStatus = (req, res) => {
         }
 
         // Update assignment record
-        db.prepare(`
+        await db.prepare(`
             UPDATE assignments 
-            SET status = ?, remarks = COALESCE(?, remarks), updated_at = datetime('now')
+            SET status = ?, remarks = COALESCE(?, remarks), updated_at = NOW()
             WHERE assignment_id = ?
         `).run(status, remarks || null, id);
 
         // Update corresponding complaint status
-        db.prepare(`
+        await db.prepare(`
             UPDATE complaints
             SET status = ?
             WHERE complaint_id = ?
@@ -64,28 +64,29 @@ exports.updateAssignmentStatus = (req, res) => {
 
         // If marked resolved, toggle technician back to 'available' if they have no other ongoing jobs
         if (status === 'resolved') {
-            const pendingJobs = db.prepare(`
+            const pendingJobsRow = await db.prepare(`
                 SELECT COUNT(*) as count 
                 FROM assignments 
                 WHERE technician_id = ? AND status != 'resolved' AND assignment_id != ?
-            `).get(technicianId, id).count;
+            `).get(technicianId, id);
 
+            const pendingJobs = pendingJobsRow ? pendingJobsRow.count : 0;
             if (pendingJobs === 0) {
-                db.prepare(`UPDATE technicians SET availability_status = 'available' WHERE technician_id = ?`).run(technicianId);
+                await db.prepare(`UPDATE technicians SET availability_status = 'available' WHERE technician_id = ?`).run(technicianId);
             }
         } else {
             // If technician was marked 'available', toggle to 'busy' since an active task is underway/reopened
-            const currentTech = db.prepare('SELECT availability_status FROM technicians WHERE technician_id = ?').get(technicianId);
+            const currentTech = await db.prepare('SELECT availability_status FROM technicians WHERE technician_id = ?').get(technicianId);
             if (currentTech && currentTech.availability_status === 'available') {
-                db.prepare(`UPDATE technicians SET availability_status = 'busy' WHERE technician_id = ?`).run(technicianId);
+                await db.prepare(`UPDATE technicians SET availability_status = 'busy' WHERE technician_id = ?`).run(technicianId);
             }
         }
 
-        logAudit(req.user.user_id, 'TECH_UPDATE_TASK', `Technician updated assignment #${id} to status: ${status}`);
+        await logAudit(req.user.user_id, 'TECH_UPDATE_TASK', `Technician updated assignment #${id} to status: ${status}`);
 
         // Notify complainant about technician progress
         try {
-            const complaint = db.prepare('SELECT user_id, category FROM complaints WHERE complaint_id = ?').get(assignment.complaint_id);
+            const complaint = await db.prepare('SELECT user_id, category FROM complaints WHERE complaint_id = ?').get(assignment.complaint_id);
             if (complaint) {
                 let notifTitle = '🔧 Complaint Update';
                 let notifMsg = `Your complaint #${assignment.complaint_id} status is now: ${status}.`;
@@ -102,7 +103,7 @@ exports.updateAssignmentStatus = (req, res) => {
                     notifTitle = '↩️ Task Reverted to Assigned';
                     notifMsg = `Complaint #${assignment.complaint_id} status was rolled back to Assigned for re-evaluation. ${remarks ? `Note: "${remarks}"` : ''}`;
                 }
-                sendNotification(complaint.user_id, notifTitle, notifMsg.trim());
+                await sendNotification(complaint.user_id, notifTitle, notifMsg.trim());
             }
         } catch (notifErr) {
             console.error('[Technician] Notification dispatch error:', notifErr.message);
@@ -120,9 +121,9 @@ exports.updateAssignmentStatus = (req, res) => {
     }
 };
 
-exports.getAllTechnicians = (req, res) => {
+exports.getAllTechnicians = async (req, res) => {
     try {
-        const technicians = db.prepare(`
+        const technicians = await db.prepare(`
             SELECT t.technician_id, t.availability_status, u.user_id, u.name, u.email, u.phone,
                    l.area as base_area,
                    (SELECT COUNT(*) FROM assignments a WHERE a.technician_id = t.technician_id AND a.status != 'resolved') as active_tasks
@@ -139,14 +140,14 @@ exports.getAllTechnicians = (req, res) => {
     }
 };
 
-exports.getProfile = (req, res) => {
+exports.getProfile = async (req, res) => {
     try {
         const technicianId = req.user.technician_id;
         if (!technicianId) {
             return res.status(403).json({ error: 'User does not possess a technician profile' });
         }
 
-        const technician = db.prepare(`
+        const technician = await db.prepare(`
             SELECT t.technician_id, t.availability_status, 
                    u.user_id, u.name, u.email, u.phone, u.role,
                    l.location_id, l.area, l.district, l.zone
@@ -161,7 +162,7 @@ exports.getProfile = (req, res) => {
         }
 
         // Calculate performance metrics
-        const stats = db.prepare(`
+        const stats = await db.prepare(`
             SELECT 
                 COUNT(*) as total_tasks,
                 SUM(CASE WHEN status != 'resolved' THEN 1 ELSE 0 END) as active_tasks,
@@ -173,8 +174,8 @@ exports.getProfile = (req, res) => {
             WHERE technician_id = ?
         `).get(technicianId);
 
-        const total = stats.total_tasks || 0;
-        const resolved = stats.resolved_tasks || 0;
+        const total = stats?.total_tasks || 0;
+        const resolved = stats?.resolved_tasks || 0;
         const completionRate = total > 0 ? Math.round((resolved / total) * 100) : 100;
 
         res.json({
@@ -182,11 +183,11 @@ exports.getProfile = (req, res) => {
                 ...technician,
                 stats: {
                     total_tasks: total,
-                    active_tasks: stats.active_tasks || 0,
+                    active_tasks: stats?.active_tasks || 0,
                     resolved_tasks: resolved,
-                    assigned_tasks: stats.assigned_tasks || 0,
-                    investigating_tasks: stats.investigating_tasks || 0,
-                    repairing_tasks: stats.repairing_tasks || 0,
+                    assigned_tasks: stats?.assigned_tasks || 0,
+                    investigating_tasks: stats?.investigating_tasks || 0,
+                    repairing_tasks: stats?.repairing_tasks || 0,
                     completion_rate: completionRate
                 }
             }
@@ -197,7 +198,7 @@ exports.getProfile = (req, res) => {
     }
 };
 
-exports.updateAvailabilityStatus = (req, res) => {
+exports.updateAvailabilityStatus = async (req, res) => {
     try {
         const technicianId = req.user.technician_id;
         if (!technicianId) {
@@ -210,13 +211,13 @@ exports.updateAvailabilityStatus = (req, res) => {
             return res.status(400).json({ error: `Status must be one of: ${allowed.join(', ')}` });
         }
 
-        db.prepare(`
+        await db.prepare(`
             UPDATE technicians 
             SET availability_status = ? 
             WHERE technician_id = ?
         `).run(status, technicianId);
 
-        logAudit(req.user.user_id, 'TECH_STATUS_CHANGE', `Technician changed availability status to: ${status}`);
+        await logAudit(req.user.user_id, 'TECH_STATUS_CHANGE', `Technician changed availability status to: ${status}`);
 
         res.json({
             message: `Availability status updated to ${status}`,
@@ -228,7 +229,7 @@ exports.updateAvailabilityStatus = (req, res) => {
     }
 };
 
-exports.updateProfile = (req, res) => {
+exports.updateProfile = async (req, res) => {
     try {
         const { name, phone } = req.body;
         const userId = req.user.user_id;
@@ -237,16 +238,16 @@ exports.updateProfile = (req, res) => {
             return res.status(400).json({ error: 'Provide at least name or phone to update' });
         }
 
-        db.prepare(`
+        await db.prepare(`
             UPDATE users
             SET name = COALESCE(?, name),
                 phone = COALESCE(?, phone)
             WHERE user_id = ?
         `).run(name?.trim() || null, phone?.trim() || null, userId);
 
-        logAudit(userId, 'TECH_PROFILE_UPDATE', `Technician updated contact profile (Name: ${name || 'unchanged'}, Phone: ${phone || 'unchanged'})`);
+        await logAudit(userId, 'TECH_PROFILE_UPDATE', `Technician updated contact profile (Name: ${name || 'unchanged'}, Phone: ${phone || 'unchanged'})`);
 
-        const updatedUser = db.prepare(`
+        const updatedUser = await db.prepare(`
             SELECT u.user_id, u.name, u.email, u.phone, u.role, 
                    t.technician_id, t.availability_status
             FROM users u

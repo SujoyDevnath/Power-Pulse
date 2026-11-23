@@ -84,33 +84,20 @@ app.use((err, req, res, next) => {
     });
 });
 
-const { checkMySQLConnection } = require('./src/config/mysql');
 const db = require('./src/config/db');
-const initDb = require('./src/scripts/initDb');
-
-// Ensure database tables and initial data exist on server startup (crucial for cloud deployments like Render)
-try {
-    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").get();
-    if (!tableCheck) {
-        console.log('[PowerPulse] Fresh deployment detected: auto-initializing database tables and seed data...');
-        initDb();
-        const seed = require('./src/scripts/seed');
-        seed();
-        console.log('[PowerPulse] Database auto-initialized and seeded successfully.');
-    }
-} catch (e) {
-    console.warn('[PowerPulse] Database init check:', e.message);
-}
 
 // Start Server
 if (require.main === module) {
     app.listen(PORT, async () => {
         console.log(`====================================================`);
-        console.log(`⚡ PowerPulse API Server running on port ${PORT}`);
+        console.log(`⚡ PowerPulse Core API Server running on port ${PORT}`);
         console.log(`🌐 Base URL: http://localhost:${PORT}/api`);
         console.log(`🩺 Health:   http://localhost:${PORT}/api/health`);
-        if (process.env.DB_CLIENT === 'mysql') {
-            await checkMySQLConnection();
+        try {
+            const [rows] = await db.query('SELECT COUNT(*) as count FROM users');
+            console.log(`🗄️ Aiven Cloud MySQL Connected! Total active users: ${rows[0].count}`);
+        } catch (dbErr) {
+            console.error(`❌ Aiven Cloud MySQL connection error:`, dbErr.message);
         }
         console.log(`====================================================`);
     });

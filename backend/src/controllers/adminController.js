@@ -1,25 +1,34 @@
 const db = require('../config/db');
 const logAudit = require('../utils/auditLogger');
 
-exports.getAnalytics = (req, res) => {
+exports.getAnalytics = async (req, res) => {
     try {
         // 1. KPI Counts
-        const activeOutages = db.prepare("SELECT COUNT(*) as count FROM incidents WHERE status = 'open'").get().count;
-        const totalOutages = db.prepare("SELECT COUNT(*) as count FROM incidents").get().count;
-        const pendingComplaints = db.prepare("SELECT COUNT(*) as count FROM complaints WHERE status != 'resolved'").get().count;
-        const totalUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'consumer'").get().count;
-        const activeTechs = db.prepare("SELECT COUNT(*) as count FROM technicians WHERE availability_status != 'off'").get().count;
+        const activeOutagesRow = await db.prepare("SELECT COUNT(*) as count FROM incidents WHERE status = 'open'").get();
+        const activeOutages = activeOutagesRow ? activeOutagesRow.count : 0;
+
+        const totalOutagesRow = await db.prepare("SELECT COUNT(*) as count FROM incidents").get();
+        const totalOutages = totalOutagesRow ? totalOutagesRow.count : 0;
+
+        const pendingComplaintsRow = await db.prepare("SELECT COUNT(*) as count FROM complaints WHERE status != 'resolved'").get();
+        const pendingComplaints = pendingComplaintsRow ? pendingComplaintsRow.count : 0;
+
+        const totalUsersRow = await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'consumer'").get();
+        const totalUsers = totalUsersRow ? totalUsersRow.count : 0;
+
+        const activeTechsRow = await db.prepare("SELECT COUNT(*) as count FROM technicians WHERE availability_status != 'off'").get();
+        const activeTechs = activeTechsRow ? activeTechsRow.count : 0;
 
         // Average duration of restored outages
-        const avgDurationRow = db.prepare(`
+        const avgDurationRow = await db.prepare(`
             SELECT AVG(duration_minutes) as avg_duration 
             FROM incidents 
             WHERE status = 'restored' AND duration_minutes IS NOT NULL
         `).get();
-        const avgDurationMinutes = Math.round(avgDurationRow.avg_duration || 0);
+        const avgDurationMinutes = Math.round(avgDurationRow?.avg_duration || 0);
 
         // 2. Area-wise Outages (for Bar Chart)
-        const areaWiseOutages = db.prepare(`
+        const areaWiseOutages = await db.prepare(`
             SELECT l.area, COUNT(i.incident_id) as incident_count
             FROM locations l
             LEFT JOIN incidents i ON l.location_id = i.location_id
@@ -29,7 +38,7 @@ exports.getAnalytics = (req, res) => {
         `).all();
 
         // 3. Complaint Breakdown by Category (for Pie/Donut Chart)
-        const complaintsByCategory = db.prepare(`
+        const complaintsByCategory = await db.prepare(`
             SELECT category, COUNT(*) as count 
             FROM complaints 
             GROUP BY category
@@ -37,7 +46,7 @@ exports.getAnalytics = (req, res) => {
         `).all();
 
         // 4. Incident Status Distribution
-        const incidentsByStatus = db.prepare(`
+        const incidentsByStatus = await db.prepare(`
             SELECT status, COUNT(*) as count 
             FROM incidents 
             GROUP BY status
@@ -62,9 +71,9 @@ exports.getAnalytics = (req, res) => {
     }
 };
 
-exports.getAllUsers = (req, res) => {
+exports.getAllUsers = async (req, res) => {
     try {
-        const users = db.prepare(`
+        const users = await db.prepare(`
             SELECT u.user_id, u.name, u.email, u.phone, u.role, u.reliability_score, u.created_at,
                    l.area, l.district, l.zone,
                    t.technician_id, t.availability_status
@@ -81,38 +90,38 @@ exports.getAllUsers = (req, res) => {
     }
 };
 
-exports.updateUser = (req, res) => {
+exports.updateUser = async (req, res) => {
     try {
         const { id } = req.params;
         const { role, reliability_score, availability_status } = req.body;
 
-        const user = db.prepare('SELECT * FROM users WHERE user_id = ?').get(id);
+        const user = await db.prepare('SELECT * FROM users WHERE user_id = ?').get(id);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
         if (role) {
-            db.prepare('UPDATE users SET role = ? WHERE user_id = ?').run(role, id);
+            await db.prepare('UPDATE users SET role = ? WHERE user_id = ?').run(role, id);
 
             // If promoting to technician, ensure technician profile exists
             if (role === 'technician') {
-                const techExists = db.prepare('SELECT technician_id FROM technicians WHERE user_id = ?').get(id);
+                const techExists = await db.prepare('SELECT technician_id FROM technicians WHERE user_id = ?').get(id);
                 if (!techExists) {
-                    db.prepare("INSERT INTO technicians (user_id, availability_status) VALUES (?, 'available')").run(id);
+                    await db.prepare("INSERT INTO technicians (user_id, availability_status) VALUES (?, 'available')").run(id);
                 }
             }
         }
 
         if (reliability_score !== undefined) {
             const clamped = Math.max(0.05, Math.min(1.00, parseFloat(reliability_score)));
-            db.prepare('UPDATE users SET reliability_score = ? WHERE user_id = ?').run(clamped, id);
+            await db.prepare('UPDATE users SET reliability_score = ? WHERE user_id = ?').run(clamped, id);
         }
 
         if (availability_status) {
-            db.prepare('UPDATE technicians SET availability_status = ? WHERE user_id = ?').run(availability_status, id);
+            await db.prepare('UPDATE technicians SET availability_status = ? WHERE user_id = ?').run(availability_status, id);
         }
 
-        logAudit(req.user.user_id, 'UPDATE_USER', `Admin updated user #${id} attributes`);
+        await logAudit(req.user.user_id, 'UPDATE_USER', `Admin updated user #${id} attributes`);
 
         res.json({ message: 'User updated successfully', user_id: id });
     } catch (err) {
@@ -121,10 +130,10 @@ exports.updateUser = (req, res) => {
     }
 };
 
-exports.getAuditLogs = (req, res) => {
+exports.getAuditLogs = async (req, res) => {
     try {
         const { limit = 100 } = req.query;
-        const logs = db.prepare(`
+        const logs = await db.prepare(`
             SELECT a.*, u.name as user_name, u.email as user_email, u.role as user_role
             FROM audit_logs a
             LEFT JOIN users u ON a.user_id = u.user_id

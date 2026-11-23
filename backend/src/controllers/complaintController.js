@@ -2,7 +2,7 @@ const db = require('../config/db');
 const logAudit = require('../utils/auditLogger');
 const { sendNotification } = require('../utils/notificationService');
 
-exports.createComplaint = (req, res) => {
+exports.createComplaint = async (req, res) => {
     try {
         const { category, description, incident_id } = req.body;
         const userId = req.user.user_id;
@@ -17,14 +17,14 @@ exports.createComplaint = (req, res) => {
             VALUES (?, ?, ?, ?, 'pending')
         `);
 
-        const result = stmt.run(userId, incident_id || null, category, description || null);
+        const result = await stmt.run(userId, incident_id || null, category, description || null);
         const complaintId = result.lastInsertRowid;
 
-        logAudit(userId, 'CREATE_COMPLAINT', `User filed complaint #${complaintId} (${category})`);
+        await logAudit(userId, 'CREATE_COMPLAINT', `User filed complaint #${complaintId} (${category})`);
 
         // Notify user about successful submission
         try {
-            sendNotification(
+            await sendNotification(
                 userId,
                 '📝 Complaint Registered',
                 `Your ticket #${complaintId} regarding "${category.replace('_', ' ')}" has been received and queued for technician review.`
@@ -43,9 +43,9 @@ exports.createComplaint = (req, res) => {
     }
 };
 
-exports.getMyComplaints = (req, res) => {
+exports.getMyComplaints = async (req, res) => {
     try {
-        const complaints = db.prepare(`
+        const complaints = await db.prepare(`
             SELECT c.*, a.status as assignment_status, a.remarks as tech_remarks,
                    t_user.name as technician_name, t_user.phone as technician_phone
             FROM complaints c
@@ -63,7 +63,7 @@ exports.getMyComplaints = (req, res) => {
     }
 };
 
-exports.getAllComplaints = (req, res) => {
+exports.getAllComplaints = async (req, res) => {
     try {
         const { status, category, limit = 100 } = req.query;
         let query = `
@@ -93,7 +93,7 @@ exports.getAllComplaints = (req, res) => {
         query += ' ORDER BY c.created_at DESC LIMIT ?';
         params.push(parseInt(limit, 10));
 
-        const complaints = db.prepare(query).all(...params);
+        const complaints = await db.prepare(query).all(...params);
         res.json({ complaints });
     } catch (err) {
         console.error('[Complaints] Get all error:', err);
@@ -101,7 +101,7 @@ exports.getAllComplaints = (req, res) => {
     }
 };
 
-exports.assignTechnician = (req, res) => {
+exports.assignTechnician = async (req, res) => {
     try {
         const { id } = req.params;
         const { technician_id, remarks } = req.body;
@@ -110,45 +110,45 @@ exports.assignTechnician = (req, res) => {
             return res.status(400).json({ error: 'technician_id is required' });
         }
 
-        const tech = db.prepare('SELECT * FROM technicians WHERE technician_id = ?').get(technician_id);
+        const tech = await db.prepare('SELECT * FROM technicians WHERE technician_id = ?').get(technician_id);
         if (!tech) {
             return res.status(404).json({ error: 'Technician not found' });
         }
 
-        const complaint = db.prepare('SELECT * FROM complaints WHERE complaint_id = ?').get(id);
+        const complaint = await db.prepare('SELECT * FROM complaints WHERE complaint_id = ?').get(id);
         if (!complaint) {
             return res.status(404).json({ error: 'Complaint not found' });
         }
 
         // Upsert assignment record
-        const existingAssignment = db.prepare('SELECT assignment_id FROM assignments WHERE complaint_id = ?').get(id);
+        const existingAssignment = await db.prepare('SELECT assignment_id FROM assignments WHERE complaint_id = ?').get(id);
         if (existingAssignment) {
-            db.prepare(`
+            await db.prepare(`
                 UPDATE assignments
-                SET technician_id = ?, status = 'assigned', remarks = ?, updated_at = datetime('now')
+                SET technician_id = ?, status = 'assigned', remarks = ?, updated_at = NOW()
                 WHERE complaint_id = ?
             `).run(technician_id, remarks || 'Reassigned by administrator', id);
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO assignments (complaint_id, technician_id, status, remarks)
                 VALUES (?, ?, 'assigned', ?)
             `).run(id, technician_id, remarks || 'Assigned by administrator');
         }
 
         // Update complaint status to 'assigned'
-        db.prepare(`UPDATE complaints SET status = 'assigned' WHERE complaint_id = ?`).run(id);
+        await db.prepare(`UPDATE complaints SET status = 'assigned' WHERE complaint_id = ?`).run(id);
 
         // Update technician status to 'busy'
-        db.prepare(`UPDATE technicians SET availability_status = 'busy' WHERE technician_id = ?`).run(technician_id);
+        await db.prepare(`UPDATE technicians SET availability_status = 'busy' WHERE technician_id = ?`).run(technician_id);
 
-        logAudit(req.user.user_id, 'ASSIGN_TECHNICIAN', `Assigned technician #${technician_id} to complaint #${id}`);
+        await logAudit(req.user.user_id, 'ASSIGN_TECHNICIAN', `Assigned technician #${technician_id} to complaint #${id}`);
 
         // Notify complainant about assigned technician
         try {
-            const techUser = db.prepare('SELECT name, phone FROM users WHERE user_id = ?').get(tech.user_id);
+            const techUser = await db.prepare('SELECT name, phone FROM users WHERE user_id = ?').get(tech.user_id);
             const techName = techUser?.name || `Technician #${technician_id}`;
             const techPhone = techUser?.phone ? ` (${techUser.phone})` : '';
-            sendNotification(
+            await sendNotification(
                 complaint.user_id,
                 '🔧 Technician Dispatched',
                 `${techName}${techPhone} has been assigned to your complaint #${id} (${complaint.category.replace('_', ' ')}). Field inspection scheduled.`

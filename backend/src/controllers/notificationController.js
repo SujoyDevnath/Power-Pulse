@@ -1,8 +1,8 @@
 const db = require('../config/db');
 
-exports.getNotifications = (req, res) => {
+exports.getNotifications = async (req, res) => {
     try {
-        const notifications = db.prepare(`
+        const notifications = await db.prepare(`
             SELECT * FROM notifications 
             WHERE user_id = ? 
             ORDER BY created_at DESC 
@@ -16,9 +16,9 @@ exports.getNotifications = (req, res) => {
     }
 };
 
-exports.getUnreadCount = (req, res) => {
+exports.getUnreadCount = async (req, res) => {
     try {
-        const result = db.prepare(`
+        const result = await db.prepare(`
             SELECT COUNT(*) as unread_count 
             FROM notifications 
             WHERE user_id = ? AND is_read = 0
@@ -31,10 +31,10 @@ exports.getUnreadCount = (req, res) => {
     }
 };
 
-exports.markAsRead = (req, res) => {
+exports.markAsRead = async (req, res) => {
     try {
         const { id } = req.params;
-        db.prepare(`
+        await db.prepare(`
             UPDATE notifications 
             SET is_read = 1 
             WHERE notification_id = ? AND user_id = ?
@@ -47,9 +47,9 @@ exports.markAsRead = (req, res) => {
     }
 };
 
-exports.markAllAsRead = (req, res) => {
+exports.markAllAsRead = async (req, res) => {
     try {
-        db.prepare(`
+        await db.prepare(`
             UPDATE notifications 
             SET is_read = 1 
             WHERE user_id = ?
@@ -58,6 +58,6 @@ exports.markAllAsRead = (req, res) => {
         res.json({ message: 'All notifications marked as read' });
     } catch (err) {
         console.error('[Notifications] Mark all read error:', err);
-        res.status(500).json({ error: 'Failed to update notifications' });
+        res.status(500).json({ error: 'Failed to mark all notifications as read' });
     }
 };

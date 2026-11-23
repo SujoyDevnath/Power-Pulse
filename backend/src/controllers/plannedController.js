@@ -2,14 +2,14 @@ const db = require('../config/db');
 const logAudit = require('../utils/auditLogger');
 const { notifyLocationUsers } = require('../utils/notificationService');
 
-exports.getPlannedOutages = (req, res) => {
+exports.getPlannedOutages = async (req, res) => {
     try {
         const { location_id } = req.query;
         let query = `
             SELECT p.*, l.district, l.area, l.zone
             FROM planned_outages p
             JOIN locations l ON p.location_id = l.location_id
-            WHERE p.outage_date >= date('now')
+            WHERE p.outage_date >= CURDATE()
         `;
         const params = [];
 
@@ -19,7 +19,7 @@ exports.getPlannedOutages = (req, res) => {
         }
 
         query += ' ORDER BY p.outage_date ASC, p.start_time ASC';
-        const planned = db.prepare(query).all(...params);
+        const planned = await db.prepare(query).all(...params);
 
         res.json({ planned });
     } catch (err) {
@@ -28,7 +28,7 @@ exports.getPlannedOutages = (req, res) => {
     }
 };
 
-exports.createPlannedOutage = (req, res) => {
+exports.createPlannedOutage = async (req, res) => {
     try {
         const { location_id, outage_date, start_time, end_time, reason } = req.body;
 
@@ -41,16 +41,16 @@ exports.createPlannedOutage = (req, res) => {
             VALUES (?, ?, ?, ?, ?)
         `);
 
-        const result = stmt.run(location_id, outage_date, start_time, end_time, reason || 'Scheduled load-shedding / grid maintenance');
+        const result = await stmt.run(location_id, outage_date, start_time, end_time, reason || 'Scheduled load-shedding / grid maintenance');
         const plannedId = result.lastInsertRowid;
 
-        logAudit(req.user.user_id, 'CREATE_PLANNED_OUTAGE', `Admin scheduled planned outage #${plannedId} for location #${location_id}`);
+        await logAudit(req.user.user_id, 'CREATE_PLANNED_OUTAGE', `Admin scheduled planned outage #${plannedId} for location #${location_id}`);
 
         // Broadcast notification to all consumers in this location
         try {
-            const loc = db.prepare('SELECT area, district, zone FROM locations WHERE location_id = ?').get(location_id);
+            const loc = await db.prepare('SELECT area, district, zone FROM locations WHERE location_id = ?').get(location_id);
             const locName = loc ? `${loc.area}, ${loc.district}` : 'your zone';
-            notifyLocationUsers(
+            await notifyLocationUsers(
                 location_id,
                 '📅 Scheduled Load-Shedding',
                 `Load-shedding scheduled for ${locName} on ${outage_date} from ${start_time} to ${end_time}. Reason: ${reason || 'Grid maintenance'}. Please plan accordingly.`
@@ -69,14 +69,13 @@ exports.createPlannedOutage = (req, res) => {
     }
 };
 
-exports.deletePlannedOutage = (req, res) => {
+exports.deletePlannedOutage = async (req, res) => {
     try {
         const { id } = req.params;
-        db.prepare('DELETE FROM planned_outages WHERE planned_id = ?').run(id);
+        await db.prepare('DELETE FROM planned_outages WHERE planned_id = ?').run(id);
+        await logAudit(req.user.user_id, 'DELETE_PLANNED_OUTAGE', `Admin removed planned outage #${id}`);
 
-        logAudit(req.user.user_id, 'DELETE_PLANNED_OUTAGE', `Admin removed planned outage #${id}`);
-
-        res.json({ message: 'Planned outage removed successfully', planned_id: id });
+        res.json({ message: 'Planned outage removed' });
     } catch (err) {
         console.error('[Planned] Delete error:', err);
         res.status(500).json({ error: 'Failed to delete planned outage' });
