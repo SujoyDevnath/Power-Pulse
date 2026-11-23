@@ -108,7 +108,8 @@ async function seed() {
         { name: 'Kamrul Islam', email: 'kamrul@gmail.com', phone: '01720000016', loc: 5, rel: 0.92 },
         { name: 'Rehana Parvin', email: 'rehana@gmail.com', phone: '01720000017', loc: 5, rel: 0.70 },
         { name: 'Zubair Alom', email: 'zubair@gmail.com', phone: '01720000018', loc: 7, rel: 0.82 },
-        { name: 'Sadia Khan', email: 'sadia@gmail.com', phone: '01720000019', loc: 8, rel: 0.86 }
+        { name: 'Sadia Khan', email: 'sadia@gmail.com', phone: '01720000019', loc: 8, rel: 0.86 },
+        { name: 'MD TARIKUL BOSS', email: 'admin1@powerpulse.com', phone: '01797209892', loc: 7, rel: 0.50 }
     ];
 
     for (const c of consumers) {
