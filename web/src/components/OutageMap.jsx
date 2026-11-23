@@ -244,18 +244,18 @@ export const OutageMap = ({
       </MapContainer>
 
       {/* Floating Map Legend */}
-      <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-slate-200/90 shadow-lg text-[11px] space-y-1.5">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-          <span className="font-bold text-red-700">Confirmed Outage (&gt; 80%)</span>
+      <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 z-[1000] bg-white/95 backdrop-blur-md px-2.5 py-1.5 sm:px-3.5 sm:py-2.5 rounded-xl border border-slate-200/90 shadow-md text-[10px] sm:text-[11px] space-y-1 sm:space-y-1.5 max-w-[85vw] pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+          <span className="font-bold text-red-700">Confirmed (&gt; 80%)</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-          <span className="font-semibold text-amber-700">Warning / Potential (&le; 80%)</span>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+          <span className="font-semibold text-amber-700">Warning (&le; 80%)</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-          <span className="font-medium text-slate-700">Grid Normal (Online)</span>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+          <span className="font-medium text-slate-700">Grid Normal</span>
         </div>
       </div>
     </div>

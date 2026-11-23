@@ -27,6 +27,28 @@
   background: #94a3b8;
 }
 
+/* Hide scrollbar for clean mobile tabs & horizontal sliders */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes slideRight {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slideRight {
+  animation: slideRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Leaflet Custom Marker & Popup Modern Styling */
 .leaflet-container {
   width: 100% !important;

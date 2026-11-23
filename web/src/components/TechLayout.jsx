@@ -76,34 +76,34 @@ export const TechLayout = () => {
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
       <OfflineBanner />
       <header className="bg-slate-900 text-white sticky top-0 z-30 shadow-md border-b border-slate-800">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30 shadow-inner">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30 shadow-inner shrink-0">
               <Wrench className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-bold text-sm tracking-tight text-white">PowerPulse Field Tech</h1>
-                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono border border-slate-700">
-                  ID: #{user?.technician_id || 'TECH'}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="font-bold text-xs sm:text-sm tracking-tight text-white truncate">PowerPulse Tech</h1>
+                <span className="text-[9px] sm:text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded-full font-mono border border-slate-700 shrink-0">
+                  #{user?.technician_id || 'TECH'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">{user?.name} • {user?.area || 'Field Base'}</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">{user?.name} • {user?.area || 'Field Base'}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Interactive Availability Toggle Dropdown */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full border transition shadow-sm ${currentCfg.badgeClass}`}
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-full border transition shadow-sm ${currentCfg.badgeClass}`}
                 title="Click to change your duty availability"
               >
-                <span className={`w-2 h-2 rounded-full ring-4 ${currentCfg.dotClass} animate-pulse`}></span>
-                <span>{currentCfg.label}</span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                <span className={`w-2 h-2 rounded-full ring-4 ${currentCfg.dotClass} animate-pulse shrink-0`}></span>
+                <span className="truncate max-w-[80px] sm:max-w-none">{currentCfg.label}</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-70 shrink-0" />
               </button>
 
               {statusDropdownOpen && (
@@ -112,7 +112,7 @@ export const TechLayout = () => {
                     className="fixed inset-0 z-40"
                     onClick={() => setStatusDropdownOpen(false)}
                   ></div>
-                  <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-2 z-50 text-xs animate-fadeIn">
+                  <div className="absolute right-0 mt-2 w-56 sm:w-64 max-w-[90vw] bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-2 z-50 text-xs animate-fadeIn">
                     <p className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider border-b border-slate-700/60 mb-1">
                       Set Duty Availability
                     </p>
@@ -148,7 +148,7 @@ export const TechLayout = () => {
 
             <button
               onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition"
+              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition shrink-0"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -157,10 +157,10 @@ export const TechLayout = () => {
         </div>
 
         {/* Navigation Tabs Bar */}
-        <div className="max-w-4xl mx-auto px-4 flex items-center gap-1 border-t border-slate-800/80">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 flex items-center gap-1 border-t border-slate-800/80 overflow-x-auto no-scrollbar">
           <Link
             to="/tech"
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition shrink-0 ${
               isOrdersActive
                 ? 'border-amber-400 text-amber-400 bg-slate-800/40'
                 : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/20'
@@ -172,7 +172,7 @@ export const TechLayout = () => {
 
           <Link
             to="/tech/profile"
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition shrink-0 ${
               isProfileActive
                 ? 'border-amber-400 text-amber-400 bg-slate-800/40'
                 : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/20'
@@ -184,7 +184,7 @@ export const TechLayout = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6">
+      <main className="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-6">
         <Outlet />
       </main>
     </div>
