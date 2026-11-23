@@ -25,13 +25,19 @@ export const OutageReportingCard = ({
   const isRedDisabled = reporting || lastReportType === 'OFF';
   const isGreenDisabled = reporting || lastReportType === 'BACK' || (!activeOutage && !lastReportType);
 
+  const isOutageConfirmed = Boolean(activeOutage);
+  const isPersonalOutageReported = !isOutageConfirmed && lastReportType === 'OFF';
+  const isGridNormal = !isOutageConfirmed && lastReportType !== 'OFF';
+
   return (
     <div className="space-y-4">
       {/* 1. Main Status Banner */}
       <div
         className={`rounded-2xl p-6 border shadow-sm transition ${
-          activeOutage
+          isOutageConfirmed
             ? 'bg-red-50/70 border-red-200'
+            : isPersonalOutageReported
+            ? 'bg-rose-50/80 border-rose-300'
             : 'bg-emerald-50/70 border-emerald-200'
         }`}
       >
@@ -39,10 +45,12 @@ export const OutageReportingCard = ({
           <div className="flex items-start gap-3">
             <div
               className={`p-3 rounded-2xl ${
-                activeOutage ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'
+                isOutageConfirmed || isPersonalOutageReported
+                  ? 'bg-red-500 text-white'
+                  : 'bg-emerald-500 text-white'
               }`}
             >
-              {activeOutage ? (
+              {isOutageConfirmed || isPersonalOutageReported ? (
                 <ZapOff className="w-7 h-7" />
               ) : (
                 <Zap className="w-7 h-7 fill-white" />
@@ -51,29 +59,40 @@ export const OutageReportingCard = ({
             <div>
               <span
                 className={`text-[11px] font-bold uppercase tracking-wider ${
-                  activeOutage ? 'text-red-700' : 'text-emerald-700'
+                  isOutageConfirmed || isPersonalOutageReported ? 'text-red-700' : 'text-emerald-700'
                 }`}
               >
-                Current Area Grid Status
+                {isPersonalOutageReported ? 'Your Outage Signal Active' : 'Current Area Grid Status'}
               </span>
               <h2 className="text-xl font-bold text-slate-900 mt-0.5">
-                {activeOutage
+                {isOutageConfirmed
                   ? 'Electricity Outage Detected in Your Area'
+                  : isPersonalOutageReported
+                  ? 'Power Outage Reported by You'
                   : 'Power Grid Active & Online'}
               </h2>
               <p className="text-xs text-slate-600 mt-1">
-                {activeOutage
+                {isOutageConfirmed
                   ? `Incident #${activeOutage.incident_id} detected with ${activeOutage.total_reports} corroborating reports.`
+                  : isPersonalOutageReported
+                  ? 'Your electricity failure report is logged. Monitoring neighborhood signals for community grid confirmation.'
                   : 'No grid disruptions reported in your neighborhood.'}
               </p>
             </div>
           </div>
 
-          {activeOutage && (
+          {isOutageConfirmed && (
             <ConfidenceBadge
               score={activeOutage.confidence_score}
               classification={activeOutage.classification}
             />
+          )}
+
+          {isPersonalOutageReported && (
+            <span className="self-start sm:self-center px-3 py-1.5 rounded-full bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 flex items-center gap-1.5 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+              Signal Logged
+            </span>
           )}
         </div>
 
