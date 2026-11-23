@@ -26,6 +26,7 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     'https://power-pulse-olive.vercel.app',
+    'https://power-pulse-app.vercel.app',
     process.env.CLIENT_URL
 ].filter(Boolean);
 
