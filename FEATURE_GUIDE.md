@@ -42,7 +42,7 @@ PowerPulse-main/
 ├── 🧠 backend/                     # The Brain (Node.js + Express API)
 │   ├── server.js                  # The Main Switchboard (starts the server)
 │   ├── src/
-│   │   ├── config/db.js           # The Memory Vault (SQLite Database)
+│   │   ├── config/db.js           # The Memory Vault (Aiven Cloud MySQL Pool)
 │   │   ├── services/
 │   │   │   ├── confidence.js      # 🧠 The Detective Robot Algorithm
 │   │   │   └── outageService.js   # ⚡ The Outage Lifecycle & Rules Engine
@@ -207,10 +207,10 @@ Here is what happens in less than **100 milliseconds** when a user clicks **"Rep
 | **Controller** | The chef in a restaurant kitchen. It takes the customer's order, prepares the data, and returns the cooked dish. |
 | **Route** | The street address on the web (like `/api/reports`). |
 | **Confidence Score** | A detective score from 0 to 100 representing how certain the computer is that an outage is really happening. |
-| **SQLite** | A fast, lightweight database stored directly in a single local file (`powerpulse.db`). |
+| **MySQL (Aiven Cloud)** | High-performance managed cloud database with SSL encryption providing permanent data storage. |
 | **JWT Token** | A secure digital passport stored in your browser so you don't have to retype your password on every single click. |
 
 ---
 
-*Authored for PROG 212 AWAD evaluation & project defense.*  
+*Authored for PowerPulse Enterprise Grid Platform.*  
 *All rights reserved — PowerPulse Team.*

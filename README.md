@@ -5,10 +5,10 @@
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-purple.svg)](https://vitejs.dev/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC.svg)](https://tailwindcss.com/)
-[![SQLite](https://img.shields.io/badge/SQLite-3-003B57.svg)](https://www.sqlite.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0%20(Aiven%20Cloud)-4479A1.svg?logo=mysql&logoColor=white)](https://aiven.io/mysql)
 
-> **Course**: PROG 212 AWAD (Advanced Web Application Development)  
-> **Institution**: University of Fundamental Technology & Business (UFTB)  
+> **Platform**: Enterprise Smart Grid Incident & Outage Management Portal  
+> **Architecture**: Distributed Cloud-Native (React 19 + Node/Express + Aiven Cloud MySQL SSL)  
 > **Authors**: Md. Tarikul Islam & Sujoy Devnath
 
 ---
@@ -35,12 +35,12 @@ PowerPulse/
 ├── backend/                  # Node.js + Express REST API Server
 │   ├── server.js             # API entrypoint, security middlewares & route mounting
 │   ├── src/
-│   │   ├── config/           # Database connection (better-sqlite3) & env loader
+│   │   ├── config/           # Aiven Cloud MySQL connection pool (mysql2/promise + SSL) & env loader
 │   │   ├── controllers/      # Business logic handlers (auth, reports, incidents, etc.)
 │   │   ├── middleware/       # JWT auth, RBAC role guard, rate limiters, validation
 │   │   ├── routes/           # REST endpoints
 │   │   ├── services/         # Outage lifecycle & confidence scoring algorithm
-│   │   └── scripts/          # DB init, seeding, and confidence algorithm simulator
+│   │   └── scripts/          # MySQL DB init, migration & seeding scripts
 │   └── .env.example          # Safe development environment template
 ├── web/                      # React 19 Single Page Application (Vite + Tailwind CSS)
 │   ├── src/
@@ -64,8 +64,8 @@ PowerPulse/
 
 ### 2. Clone the Repository
 ```bash
-git clone https://github.com/Avishekdevnath/PowerPulse.git
-cd PowerPulse
+git clone https://github.com/SujoyDevnath/Power-Pulse.git
+cd Power-Pulse
 ```
 
 ---
@@ -82,17 +82,12 @@ cp .env.example .env
 # Install backend dependencies
 npm install
 
-# Initialize and seed the SQLite database with sample Dhaka locations and users
-npm run db:reset
+# Seed the Aiven Cloud MySQL database with default Dhaka zones, admin, technicians & consumers
+npm run seed:mysql
 
 # Start backend server (starts on http://localhost:5000)
 npm start
 ```
-
-> **Tip:** You can run the confidence scoring simulation script to verify algorithmic verification:
-> ```bash
-> npm run simulate
-> ```
 
 ---
 
@@ -124,11 +119,11 @@ The database is pre-seeded with accounts across all three user roles:
 
 | Role | Email | Password | Access / Landing Page |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin@powerpulse.bd` | `Admin@123` | `/admin/dashboard` |
-| **Field Technician** | `tech.rahim@powerpulse.bd` | `Tech@123` | `/tech/assignments` |
-| **Field Technician** | `tech.karim@powerpulse.bd` | `Tech@123` | `/tech/assignments` |
-| **Consumer (Citizen)** | `rahim@gmail.com` | `User@123` | `/` (Home & Consumer Features) |
-| **Consumer (Citizen)** | `karim@gmail.com` | `User@123` | `/` (Home & Consumer Features) |
+| **Admin** | `admin@powerpulse.com` | `Admin@123` | `/admin` |
+| **Field Technician** | `rahim.tech@powerpulse.com` | `Tech@123` | `/tech` |
+| **Field Technician** | `karim.tech@powerpulse.com` | `Tech@123` | `/tech` |
+| **Consumer (Citizen)** | `tanvir@gmail.com` | `User@123` | `/consumer` |
+| **Consumer (Citizen)** | `sadia@gmail.com` | `User@123` | `/consumer` |
 
 ---
 
@@ -164,5 +159,4 @@ $$\text{Confidence} = C_{\text{count}} + C_{\text{smart\_meter}} + C_{\text{dens
 ---
 
 ## 📜 License
-This project was developed for academic evaluation under course **PROG 212 AWAD** at **UFTB**.
-All rights reserved.
+Licensed under the MIT License. Copyright © 2026 PowerPulse Utility Systems. All rights reserved.
