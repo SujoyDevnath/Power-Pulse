@@ -71,6 +71,23 @@ export const Login = ({ initialMode = 'login' }) => {
     }
   };
 
+  const handleConfigServerIp = () => {
+    const current = localStorage.getItem('powerpulse_server_ip') || 'cloud';
+    const newIp = window.prompt(
+      'PowerPulse Server Connection:\n\n• Type "cloud" for Global Live Cloud (works anywhere on 4G/5G/Wi-Fi)\n• Or enter Laptop IP (e.g. 192.168.137.1 for Hotspot):',
+      current
+    );
+    if (newIp && newIp.trim()) {
+      const val = newIp.trim();
+      if (val.toLowerCase() === 'cloud') {
+        localStorage.setItem('powerpulse_server_ip', 'https://powerpulse-api-j8oc.onrender.com/api');
+      } else {
+        localStorage.setItem('powerpulse_server_ip', val);
+      }
+      window.location.reload();
+    }
+  };
+
   // Handle Login submission
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -402,6 +419,15 @@ export const Login = ({ initialMode = 'login' }) => {
         {/* Security & System Info Footer */}
         <p className="text-center text-[11px] text-slate-400 mt-5">
           Authorized Municipal & Consumer Grid Access • PowerPulse Utility Operations
+        </p>
+        <p className="text-center mt-2">
+          <button 
+            type="button" 
+            onClick={handleConfigServerIp} 
+            className="text-[10px] text-slate-500 hover:text-sky-400 transition underline cursor-pointer"
+          >
+            Server: {localStorage.getItem('powerpulse_server_ip') ? (localStorage.getItem('powerpulse_server_ip').includes('onrender.com') ? '🌐 Live Cloud' : localStorage.getItem('powerpulse_server_ip')) : '🌐 Live Cloud (Auto-detect)'} (tap to change)
+          </button>
         </p>
       </div>
     </div>

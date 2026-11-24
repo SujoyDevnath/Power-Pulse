@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { 
   Zap, Bell, User, Clock, AlertOctagon, 
-  LogOut, MapPin, ArrowLeft
+  LogOut, MapPin, ArrowLeft, MessageSquarePlus,
+  ClipboardList, CreditCard, ShieldCheck
 } from 'lucide-react';
 import { OfflineBanner } from './OfflineBanner';
 
@@ -22,7 +23,6 @@ export const ConsumerLayout = () => {
   };
 
   const fetchUnreadCount = async () => {
-    // If currently viewing notifications, keep count at 0
     if (location.pathname.startsWith('/consumer/notifications')) {
       setUnreadCount(0);
       return;
@@ -33,11 +33,10 @@ export const ConsumerLayout = () => {
         setUnreadCount(res.data.unread_count);
       }
     } catch (err) {
-      // Silently catch if unauthenticated or network glitch
+      // Silently catch
     }
   };
 
-  // As soon as user enters/clicks notifications section, clear the indicator immediately
   useEffect(() => {
     if (isNotifPage) {
       setUnreadCount(0);
@@ -46,7 +45,6 @@ export const ConsumerLayout = () => {
 
   useEffect(() => {
     fetchUnreadCount();
-    // Poll every 15 seconds for incoming grid alerts or work order updates
     const interval = setInterval(fetchUnreadCount, 15000);
 
     const handleNotifUpdate = (e) => {
@@ -75,8 +73,12 @@ export const ConsumerLayout = () => {
 
   const showBadge = unreadCount > 0 && !isNotifPage;
 
+  // Check which tab is active for bottom navigation
+  const searchParams = new URLSearchParams(location.search);
+  const activeSubTab = searchParams.get('tab') || 'outage';
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-20 sm:pb-0">
       {/* Offline Connectivity Notification Banner */}
       <OfflineBanner />
 
@@ -84,12 +86,15 @@ export const ConsumerLayout = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="p-2 bg-sky-500/20 text-sky-600 rounded-xl shrink-0">
-              <Zap className="w-5 h-5 fill-sky-500" />
+            <div className="p-2 bg-gradient-to-tr from-sky-600 to-cyan-500 text-white rounded-xl shrink-0 shadow-sm">
+              <Zap className="w-5 h-5 fill-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-bold text-xs sm:text-sm text-slate-900 tracking-tight truncate">
-                PowerPulse <span className="hidden sm:inline">Consumer Portal</span>
+              <h1 className="font-bold text-xs sm:text-sm text-slate-900 tracking-tight truncate flex items-center gap-1.5">
+                <span>PowerPulse</span>
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                  Citizen Portal
+                </span>
               </h1>
               <p className="text-[10px] sm:text-[11px] text-slate-500 flex items-center gap-1 truncate">
                 <MapPin className="w-3 h-3 text-sky-600 shrink-0" />
@@ -125,8 +130,8 @@ export const ConsumerLayout = () => {
                 <span className="sm:hidden">Admin</span>
               </NavLink>
             ) : (
-              <span className="hidden sm:inline-block px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">
-                Reliability: {user?.reliability_score}
+              <span className="hidden sm:inline-block px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                Score: {user?.reliability_score ?? '0.97'}
               </span>
             )}
 
@@ -140,7 +145,7 @@ export const ConsumerLayout = () => {
           </div>
         </div>
 
-        {/* Tab Navigation */}
+        {/* Tab Navigation (Desktop / Tablet) */}
         <div className="max-w-4xl mx-auto px-2 sm:px-4 flex items-center gap-1 overflow-x-auto border-t border-slate-100 no-scrollbar">
           {tabs.map((tab) => {
             const isNotifTab = tab.path === '/consumer/notifications';
@@ -174,6 +179,74 @@ export const ConsumerLayout = () => {
       <main className="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-6">
         <Outlet />
       </main>
+
+      {/* 📱 Mobile Native Bottom Navigation Bar (Shown on small screens / Android App) */}
+      <nav aria-label="Mobile Navigation" className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1.5 shadow-lg flex items-center justify-around">
+        {/* 1. Outage */}
+        <button
+          onClick={() => navigate('/consumer?tab=outage')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
+            location.pathname === '/consumer' && activeSubTab === 'outage'
+              ? 'text-sky-600 font-bold'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Zap className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Outage</span>
+        </button>
+
+        {/* 2. Complaint */}
+        <button
+          onClick={() => navigate('/consumer?tab=complaint')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
+            location.pathname === '/consumer' && activeSubTab === 'complaint'
+              ? 'text-amber-600 font-bold'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <MessageSquarePlus className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Complaint</span>
+        </button>
+
+        {/* 3. Tracking */}
+        <button
+          onClick={() => navigate('/consumer?tab=tracking')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
+            location.pathname === '/consumer' && activeSubTab === 'tracking'
+              ? 'text-indigo-600 font-bold'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <ClipboardList className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Tracking</span>
+        </button>
+
+        {/* 4. Billing */}
+        <button
+          onClick={() => navigate('/consumer?tab=billing')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
+            location.pathname === '/consumer' && activeSubTab === 'billing'
+              ? 'text-emerald-600 font-bold'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <CreditCard className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Bills</span>
+        </button>
+
+        {/* 5. Profile */}
+        <button
+          onClick={() => navigate('/consumer/profile')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition ${
+            location.pathname.startsWith('/consumer/profile')
+              ? 'text-sky-600 font-bold'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <User className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Profile</span>
+        </button>
+      </nav>
     </div>
   );
 };

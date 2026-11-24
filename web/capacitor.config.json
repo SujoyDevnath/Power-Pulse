@@ -1,0 +1,16 @@
+{
+  "appId": "com.powerpulse.app",
+  "appName": "PowerPulse",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_launcher_foreground",
+      "iconColor": "#0284c7"
+    }
+  }
+}

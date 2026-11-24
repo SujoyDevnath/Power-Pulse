@@ -1,8 +1,11 @@
+import { Capacitor } from '@capacitor/core';
+import { Network } from '@capacitor/network';
+
 /**
  * 🌐 PowerPulse Real-Time Connectivity Detector
  * -----------------------------------------------------------------
- * Detects real-world network connectivity (Wi-Fi on/off, Ethernet)
- * via Google's global connectivitycheck.gstatic.com probe and native events.
+ * Detects real-world network connectivity on Mobile (Capacitor Network)
+ * and Web (navigator.onLine + probe).
  */
 
 let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -23,10 +26,30 @@ const notifyListeners = () => {
 };
 
 /**
- * Actively verify internet reachability via Google's 204 connectivity check
+ * Actively verify internet reachability via Native Network status or probe
  */
 export const checkRealInternet = async () => {
-  // 1. If browser natively reports offline (DevTools "Offline" or Airplane mode)
+  // If running as native mobile app, trust Capacitor Network plugin
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const status = await Network.getStatus();
+      const connected = Boolean(status.connected);
+      if (isOnline !== connected) {
+        isOnline = connected;
+        notifyListeners();
+      }
+      return connected;
+    } catch (err) {
+      // Fallback to true if native status check fails
+      if (!isOnline) {
+        isOnline = true;
+        notifyListeners();
+      }
+      return true;
+    }
+  }
+
+  // 1. If browser natively reports offline
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     if (isOnline !== false) {
       isOnline = false;
@@ -42,9 +65,9 @@ export const checkRealInternet = async () => {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-    // Global lightweight probe to Google 204
+    // Lightweight probe to Google 204
     await fetch(`https://connectivitycheck.gstatic.com/generate_204?_t=${Date.now()}`, {
       mode: 'no-cors',
       cache: 'no-store',
@@ -54,8 +77,8 @@ export const checkRealInternet = async () => {
     clearTimeout(timeoutId);
     hasInternet = true;
   } catch (err) {
-    // Physical Wi-Fi disconnected or no internet route
-    hasInternet = false;
+    // If external probe fails, assume online if navigator.onLine is true
+    hasInternet = typeof navigator !== 'undefined' ? navigator.onLine : true;
   } finally {
     checkInProgress = false;
   }
@@ -92,10 +115,18 @@ export const subscribeConnectivity = (callback) => {
 
 // Initialize background lifecycle listeners for automatic detection
 if (typeof window !== 'undefined') {
-  // 1. Initial check
+  // 1. Native Capacitor network listener
+  if (Capacitor.isNativePlatform()) {
+    Network.addListener('networkStatusChange', (status) => {
+      isOnline = Boolean(status.connected);
+      notifyListeners();
+    });
+  }
+
+  // 2. Initial check
   checkRealInternet();
 
-  // 2. Browser native events
+  // 3. Browser native events
   window.addEventListener('online', () => {
     isOnline = true;
     notifyListeners();
@@ -107,7 +138,6 @@ if (typeof window !== 'undefined') {
     notifyListeners();
   });
 
-  // 3. User switches back to browser tab after turning off/on Wi-Fi in Windows
   window.addEventListener('focus', () => {
     checkRealInternet();
   });
@@ -120,8 +150,8 @@ if (typeof window !== 'undefined') {
     });
   }
 
-  // 4. Ultra-responsive periodic heartbeat (every 2.5 seconds)
+  // 4. Periodic heartbeat (every 5 seconds)
   setInterval(() => {
     checkRealInternet();
-  }, 2500);
+  }, 5000);
 }

@@ -233,6 +233,15 @@ export const TechnicianTaskDetail = () => {
             </span>
             <p className="font-bold text-slate-900 text-sm mt-1">{task.area}</p>
             <p className="text-slate-500 text-[11px]">{task.district} • {task.zone}</p>
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(task.area + ', ' + task.district + ', Dhaka, Bangladesh')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2.5 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-sm transition w-full"
+            >
+              <MapPin className="w-3.5 h-3.5 text-white" />
+              <span>🗺️ Navigate (Google Maps)</span>
+            </a>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
